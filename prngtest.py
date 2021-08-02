@@ -1,4 +1,7 @@
-from typing import List, NamedTuple
+from math import erfc, sqrt
+from typing import List, NamedTuple, Union
+
+from bitarray import bitarray
 
 __all__ = [
     "monobit",
@@ -20,7 +23,7 @@ __all__ = [
 
 
 class Result(NamedTuple):
-    statistic: float
+    statistic: Union[int, float]
     p: float
 
 
@@ -34,8 +37,17 @@ class ResultsMap(dict):
         return [result.p for result in self.values()]
 
 
-def monobit():
-    pass
+def monobit(bits) -> Result:
+    a = bitarray(bits)
+
+    n = len(a)
+    ones = a.count(1)
+    zeros = n - ones
+    diff = abs(ones - zeros)
+    normdiff = diff / sqrt(n)
+    p = erfc(normdiff / sqrt(2))
+
+    return Result(normdiff, p)
 
 
 def block_frequency():
