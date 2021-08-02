@@ -1,6 +1,8 @@
-from bitarray import bitarray
+from bitarray import frozenbitarray
 
-e = bitarray(
+__all__ = ["EULER_BIN_EXPANSION"]
+
+EULER_BIN_EXPANSION = frozenbitarray(
     "10101101"
     "11111000"
     "01010100"
