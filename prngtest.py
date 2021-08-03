@@ -1,5 +1,5 @@
 from math import erfc, sqrt
-from typing import List, NamedTuple, Union
+from typing import Iterator, List, Literal, NamedTuple, Sequence, Tuple, Union
 
 from bitarray import frozenbitarray
 from more_itertools import chunked
@@ -22,6 +22,9 @@ __all__ = [
     "excursions",
     "excursions_variant",
 ]
+
+
+BitArray = Sequence
 
 
 class Result(NamedTuple):
@@ -52,7 +55,7 @@ def monobit(bits) -> Result:
     return Result(normdiff, p)
 
 
-def block_frequency(bits, blocksize: int):
+def block_frequency(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
 
     n = len(a)
@@ -72,8 +75,35 @@ def block_frequency(bits, blocksize: int):
     return Result(chi2, p)
 
 
-def runs():
-    pass
+def _asruns(a: BitArray) -> Iterator[Tuple[Literal[0, 1], int]]:
+    run_val = a[0]
+    run_len = 1
+    for value in a[1:]:
+        if value == run_val:
+            run_len += 1
+        else:
+            yield run_val, run_len
+            run_val = value
+            run_len = 1
+    yield run_val, run_len
+
+
+def runs(bits):
+    a = frozenbitarray(bits)
+
+    n = len(a)
+
+    ones = a.count(1)
+    prop_ones = ones / n
+    prop_zeros = 1 - prop_ones
+
+    nruns = sum(1 for _ in _asruns(a))
+    p = erfc(
+        abs(nruns - (2 * ones * prop_zeros)) /
+        (2 * sqrt(2 * n) * prop_ones * prop_zeros)
+    )
+
+    return Result(nruns, p)
 
 
 def longest_runs():
