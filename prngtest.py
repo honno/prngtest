@@ -1,7 +1,9 @@
 from math import erfc, sqrt
 from typing import List, NamedTuple, Union
 
-from bitarray import bitarray
+from bitarray import frozenbitarray
+from more_itertools import chunked
+from scipy.special import gammaincc
 
 __all__ = [
     "monobit",
@@ -38,7 +40,7 @@ class ResultsMap(dict):
 
 
 def monobit(bits) -> Result:
-    a = bitarray(bits)
+    a = frozenbitarray(bits)
 
     n = len(a)
     ones = a.count(1)
@@ -50,8 +52,24 @@ def monobit(bits) -> Result:
     return Result(normdiff, p)
 
 
-def block_frequency():
-    pass
+def block_frequency(bits, blocksize: int):
+    a = frozenbitarray(bits)
+
+    n = len(a)
+    nblocks = n // blocksize
+
+    boundary = blocksize * nblocks
+    deviations = []
+    for chunk in chunked(a[:boundary], blocksize):
+        ones = chunk.count(1)
+        prop = ones / blocksize
+        dev = prop - 1 / 2
+        deviations.append(dev)
+
+    chi2 = 4 * blocksize * sum(x ** 2 for x in deviations)
+    p = gammaincc(nblocks / 2, chi2 / 2)
+
+    return Result(chi2, p)
 
 
 def runs():
