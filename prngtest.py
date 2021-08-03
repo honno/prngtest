@@ -1,9 +1,13 @@
+from bisect import bisect_left
+from functools import lru_cache
 from math import erfc, sqrt
+from numbers import Real
 from typing import Iterator, List, Literal, NamedTuple, Sequence, Tuple, Union
 
 from bitarray import frozenbitarray
 from more_itertools import chunked
 from scipy.special import gammaincc
+from scipy.stats import chisquare
 
 __all__ = [
     "monobit",
@@ -106,8 +110,59 @@ def runs(bits):
     return Result(nruns, p)
 
 
-def longest_runs():
-    pass
+@lru_cache
+def _binkey(okeys: Tuple[Real], key: Real) -> Real:
+    i = bisect_left(okeys, key)
+    left = okeys[i - 1]
+    right = okeys[i]
+    if abs(left - key) < abs(right - key):
+        return left
+    else:
+        return right
+
+
+def longest_runs(bits):
+    a = frozenbitarray(bits)
+
+    n = len(a)
+
+    # n: (blocksize, nblocks, intervals)
+    defaults = {
+        128: (8, 16, (1, 2, 3, 4)),
+        6272: (128, 49, (4, 5, 6, 7, 8, 9)),
+        750000: (10 ** 4, 75, (10, 11, 12, 13, 14, 15, 16)),
+    }
+    try:
+        key = min(k for k in defaults.keys() if k >= n)
+    except ValueError as e:
+        raise NotImplementedError(
+            "Test implementation cannot handle sequences below length 128"
+        ) from e
+    blocksize, nblocks, intervals = defaults[key]
+
+    maxlen_bins = {k: 0 for k in intervals}
+    boundary = nblocks * blocksize
+    for chunk in chunked(a[:boundary], blocksize):
+        one_run_lengths = [len_ for val, len_ in _asruns(chunk) if val == 1]
+        try:
+            maxlen = max(one_run_lengths)
+        except ValueError:
+            maxlen = 0
+        maxlen_bins[_binkey(intervals, maxlen)] += 1
+
+    blocksize_probabilities = {
+        8: [0.2148, 0.3672, 0.2305, 0.1875],
+        128: [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124],
+        512: [0.1170, 0.2460, 0.2523, 0.1755, 0.1027, 0.1124],
+        1000: [0.1307, 0.2437, 0.2452, 0.1714, 0.1002, 0.1088],
+        10000: [0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727],
+    }
+    probabilities = blocksize_probabilities[blocksize]
+    expected_bincounts = [prob * nblocks for prob in probabilities]
+
+    chi2, p = chisquare(list(maxlen_bins.values()), expected_bincounts)
+
+    return Result(chi2, p)
 
 
 def matrix_rank():
