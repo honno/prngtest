@@ -2,10 +2,11 @@ from bisect import bisect_left
 from functools import lru_cache
 from math import erfc, sqrt
 from numbers import Real
-from typing import Iterator, List, Literal, NamedTuple, Sequence, Tuple, Union
+from typing import (Iterable, Iterator, List, Literal, NamedTuple, Sequence,
+                    Tuple, Union)
 
 from bitarray import frozenbitarray
-from more_itertools import chunked
+from bitarray.util import ba2int
 from scipy.special import gammaincc
 from scipy.stats import chisquare
 
@@ -59,15 +60,19 @@ def monobit(bits) -> Result:
     return Result(normdiff, p)
 
 
+def _chunked(a: BitArray, blocksize: int, nblocks: int) -> Iterator[BitArray]:
+    for i in range(0, blocksize * nblocks, blocksize):
+        yield a[i:i + blocksize]
+
+
 def block_frequency(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
 
     n = len(a)
     nblocks = n // blocksize
 
-    boundary = blocksize * nblocks
     deviations = []
-    for chunk in chunked(a[:boundary], blocksize):
+    for chunk in _chunked(a, blocksize, nblocks):
         ones = chunk.count(1)
         prop = ones / blocksize
         dev = prop - 1 / 2
@@ -125,9 +130,8 @@ def longest_runs(bits):
     a = frozenbitarray(bits)
 
     n = len(a)
-
-    # n: (blocksize, nblocks, intervals)
     defaults = {
+        # n: (blocksize, nblocks, intervals)
         128: (8, 16, (1, 2, 3, 4)),
         6272: (128, 49, (4, 5, 6, 7, 8, 9)),
         750000: (10 ** 4, 75, (10, 11, 12, 13, 14, 15, 16)),
@@ -141,8 +145,7 @@ def longest_runs(bits):
     blocksize, nblocks, intervals = defaults[key]
 
     maxlen_bins = {k: 0 for k in intervals}
-    boundary = nblocks * blocksize
-    for chunk in chunked(a[:boundary], blocksize):
+    for chunk in _chunked(a, blocksize, nblocks):
         one_run_lengths = [len_ for val, len_ in _asruns(chunk) if val == 1]
         try:
             maxlen = max(one_run_lengths)
@@ -165,8 +168,51 @@ def longest_runs(bits):
     return Result(chi2, p)
 
 
-def matrix_rank():
-    pass
+def _gf2_matrix_rank(matrix: Iterable[BitArray]) -> int:
+    numbers = [ba2int(a) for a in matrix]
+
+    rank = 0
+    while len(numbers) > 0:
+        pivot = numbers.pop()
+        if pivot:
+            rank += 1
+            lsb = pivot & -pivot
+            for i, num in enumerate(numbers):
+                if lsb & num:
+                    numbers[i] = num ^ pivot
+
+    return rank
+
+
+def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
+    a = frozenbitarray(bits)
+
+    n = len(a)
+    nrows, ncols = matrix_dimen
+    blocksize = nrows * ncols
+    nblocks = n // blocksize
+
+    ranks = []
+    for chunk in _chunked(a, blocksize, nblocks):
+        matrix = _chunked(chunk, ncols, nrows)
+        rank = _gf2_matrix_rank(matrix)
+        ranks.append(rank)
+
+    fullrank = min(nrows, ncols)
+    rankcounts = [0, 0, 0]
+    for rank in ranks:
+        if rank == fullrank:
+            rankcounts[0] += 1
+        elif rank == fullrank - 1:
+            rankcounts[1] += 1
+        else:
+            rankcounts[2] += 1
+
+    expected_rankcounts = (0.2888 * nblocks, 0.5776 * nblocks, 0.1336 * nblocks)
+
+    chi2, p = chisquare(rankcounts, expected_rankcounts)
+
+    return Result(chi2, p)
 
 
 def spectral():

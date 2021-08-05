@@ -9,8 +9,8 @@ license = "BSD-3-Clause"
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
 bitarray = "^2.2.4"
-more-itertools = "^8.8.0"
-scipy = "^1.7.1"
+# some later version requires normalisation for chisquare values which I cba with
+scipy = "1.5.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
