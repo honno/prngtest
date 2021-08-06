@@ -1,12 +1,13 @@
 from bisect import bisect_left
 from functools import lru_cache
-from math import erfc, sqrt
+from math import erfc, log, sqrt
 from numbers import Real
-from typing import (Iterable, Iterator, List, Literal, NamedTuple, Sequence,
-                    Tuple, Union)
+from typing import (Iterable, Iterator, List, Literal, MutableSequence,
+                    NamedTuple, Tuple, Union)
 
-from bitarray import frozenbitarray
+from bitarray import bitarray
 from bitarray.util import ba2int
+from scipy.fft import fft
 from scipy.special import gammaincc
 from scipy.stats import chisquare
 
@@ -29,7 +30,7 @@ __all__ = [
 ]
 
 
-BitArray = Sequence
+BitArray = MutableSequence[Literal[0, 1]]
 
 
 class Result(NamedTuple):
@@ -48,7 +49,7 @@ class ResultsMap(dict):
 
 
 def monobit(bits) -> Result:
-    a = frozenbitarray(bits)
+    a = bitarray(bits)
 
     n = len(a)
     ones = a.count(1)
@@ -66,7 +67,7 @@ def _chunked(a: BitArray, blocksize: int, nblocks: int) -> Iterator[BitArray]:
 
 
 def block_frequency(bits, blocksize: int) -> Result:
-    a = frozenbitarray(bits)
+    a = bitarray(bits)
 
     n = len(a)
     nblocks = n // blocksize
@@ -98,7 +99,7 @@ def _asruns(a: BitArray) -> Iterator[Tuple[Literal[0, 1], int]]:
 
 
 def runs(bits):
-    a = frozenbitarray(bits)
+    a = bitarray(bits)
 
     n = len(a)
 
@@ -127,7 +128,7 @@ def _binkey(okeys: Tuple[Real], key: Real) -> Real:
 
 
 def longest_runs(bits):
-    a = frozenbitarray(bits)
+    a = bitarray(bits)
 
     n = len(a)
     defaults = {
@@ -185,7 +186,7 @@ def _gf2_matrix_rank(matrix: Iterable[BitArray]) -> int:
 
 
 def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
-    a = frozenbitarray(bits)
+    a = bitarray(bits)
 
     n = len(a)
     nrows, ncols = matrix_dimen
@@ -215,8 +216,27 @@ def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
     return Result(chi2, p)
 
 
-def spectral():
-    pass
+def spectral(bits):
+    a = bitarray(bits)
+
+    n = len(a)
+    if n % 2 != 0:
+        a.pop()
+    threshold = sqrt(log(1 / 0.05) * n)
+    oscillations = [1 if b == 1 else -1 for b in a]
+
+    fourier = fft(oscillations)
+    half_fourier = fourier[: n // 2]
+    peaks = [abs(n) for n in half_fourier]
+    nbelow = sum(p < threshold for p in peaks)
+
+    nbelow_expect = 0.95 * n / 2
+
+    diff = nbelow - nbelow_expect
+    normdiff = diff / sqrt((n * 0.95 * 0.05) / 4)
+    p = erfc(abs(normdiff) / sqrt(2))
+
+    return Result(normdiff, p)
 
 
 def notm():

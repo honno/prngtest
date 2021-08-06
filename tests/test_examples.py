@@ -320,7 +320,6 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
 )
 def test_examples(randtest, bits, kwargs, statistic, p):
     result = randtest(bits, **kwargs)
-
     assert statistic_isclose(result.statistic, statistic)
     assert p_isclose(result.p, p)
 
@@ -428,7 +427,6 @@ def test_examples(randtest, bits, kwargs, statistic, p):
 )
 def test_multi_examples(randtest, bits, kwargs, statistic, p):
     result = randtest(bits, **kwargs)
-
     for statistic, statistic_expect in zip(result.statistic, statistic):
         assert statistic_isclose(statistic, statistic_expect)
     for p, p_expect in zip(result.p, p):
