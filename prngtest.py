@@ -1,11 +1,13 @@
 from bisect import bisect_left
+from collections import defaultdict
 from functools import lru_cache
+from itertools import product
 from math import erfc, log, sqrt
 from numbers import Real
-from typing import (Iterable, Iterator, List, Literal, MutableSequence,
-                    NamedTuple, Tuple, Union)
+from typing import (Iterable, Iterator, List, Literal, NamedTuple, Sequence,
+                    Tuple, Union)
 
-from bitarray import bitarray
+from bitarray import bitarray, frozenbitarray
 from bitarray.util import ba2int
 from scipy.fft import fft
 from scipy.special import gammaincc
@@ -30,7 +32,7 @@ __all__ = [
 ]
 
 
-BitArray = MutableSequence[Literal[0, 1]]
+BitArray = Sequence[Literal[0, 1]]
 
 
 class Result(NamedTuple):
@@ -40,17 +42,16 @@ class Result(NamedTuple):
 
 class ResultsMap(dict):
     @property
-    def statistic(self) -> List[float]:
+    def statistics(self) -> List[float]:
         return [result.statistic for result in self.values()]
 
     @property
-    def p(self) -> List[float]:
+    def pvalues(self) -> List[float]:
         return [result.p for result in self.values()]
 
 
 def monobit(bits) -> Result:
-    a = bitarray(bits)
-
+    a = frozenbitarray(bits)
     n = len(a)
     ones = a.count(1)
     zeros = n - ones
@@ -67,8 +68,7 @@ def _chunked(a: BitArray, blocksize: int, nblocks: int) -> Iterator[BitArray]:
 
 
 def block_frequency(bits, blocksize: int) -> Result:
-    a = bitarray(bits)
-
+    a = frozenbitarray(bits)
     n = len(a)
     nblocks = n // blocksize
 
@@ -99,8 +99,7 @@ def _asruns(a: BitArray) -> Iterator[Tuple[Literal[0, 1], int]]:
 
 
 def runs(bits):
-    a = bitarray(bits)
-
+    a = frozenbitarray(bits)
     n = len(a)
 
     ones = a.count(1)
@@ -128,8 +127,7 @@ def _binkey(okeys: Tuple[Real], key: Real) -> Real:
 
 
 def longest_runs(bits):
-    a = bitarray(bits)
-
+    a = frozenbitarray(bits)
     n = len(a)
     defaults = {
         # n: (blocksize, nblocks, intervals)
@@ -155,6 +153,7 @@ def longest_runs(bits):
         maxlen_bins[_binkey(intervals, maxlen)] += 1
 
     blocksize_probabilities = {
+        # blocksize: <bin interval probabilities>
         8: [0.2148, 0.3672, 0.2305, 0.1875],
         128: [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124],
         512: [0.1170, 0.2460, 0.2523, 0.1755, 0.1027, 0.1124],
@@ -186,8 +185,7 @@ def _gf2_matrix_rank(matrix: Iterable[BitArray]) -> int:
 
 
 def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
-    a = bitarray(bits)
-
+    a = frozenbitarray(bits)
     n = len(a)
     nrows, ncols = matrix_dimen
     blocksize = nrows * ncols
@@ -216,13 +214,13 @@ def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
     return Result(chi2, p)
 
 
-def spectral(bits):
+def spectral(bits) -> Result:
     a = bitarray(bits)
-
     n = len(a)
     if n % 2 != 0:
         a.pop()
     threshold = sqrt(log(1 / 0.05) * n)
+    # TODO github.com/ilanschnell/bitarray/blob/master/examples/ndarray.py
     oscillations = [1 if b == 1 else -1 for b in a]
 
     fourier = fft(oscillations)
@@ -239,37 +237,64 @@ def spectral(bits):
     return Result(normdiff, p)
 
 
-def notm():
+def _windowed(a: BitArray, blocksize: int) -> Iterator[BitArray]:
+    n = len(a)
+    for i in range(0, n - blocksize + 1):
+        yield a[i:i + blocksize]
+
+
+def notm(bits, tempsize: int, blocksize: int) -> ResultsMap:
+    a = frozenbitarray(bits)
+    n = len(a)
+    nblocks = n // blocksize
+
+    block_counts = defaultdict(lambda: defaultdict(int))
+    for i, chunk in enumerate(_chunked(a, blocksize, nblocks)):
+        matches = defaultdict(int)
+        for temp in _windowed(chunk, tempsize):
+            matches[temp] += 1
+        for temp, count in matches.items():
+            block_counts[temp][i] = count
+
+    count_expect = (blocksize - tempsize + 1) / 2 ** tempsize
+    variance = blocksize * ((1 / 2 ** tempsize) - ((2 * tempsize - 1) / 2 ** (2 * tempsize)))
+    results = ResultsMap()
+    for temp in (frozenbitarray(p) for p in product([0, 1], repeat=tempsize)):
+        count_diffs = [block_counts[temp][b] - count_expect for b in range(nblocks)]
+        chi2 = sum(diff ** 2 / variance for diff in count_diffs)
+        p = gammaincc(nblocks / 2, chi2 / 2)
+        results[temp] = Result(chi2, p)
+
+    return results
+
+
+def otm(bits, **kwargs):
     pass
 
 
-def otm():
+def universal(bits, **kwargs):
     pass
 
 
-def universal():
+def complexity(bits, **kwargs):
     pass
 
 
-def complexity():
+def serial(bits, **kwargs):
     pass
 
 
-def serial():
+def apen(bits, **kwargs):
     pass
 
 
-def apen():
+def cusum(bits, **kwargs):
     pass
 
 
-def cusum():
+def excursions(bits, **kwargs):
     pass
 
 
-def excursions():
-    pass
-
-
-def excursions_variant():
+def excursions_variant(bits, **kwargs):
     pass

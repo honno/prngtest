@@ -1,5 +1,6 @@
 from math import isclose
 
+from bitarray import frozenbitarray
 from pytest import mark, param
 
 from prngtest import *
@@ -188,7 +189,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
                 "1011111000"  # now has 2 matches, as expected
                 "0101101001"
             ),
-            template_size=2,
+            tempsize=2,
             blocksize=10,  # nblocks=5
             df=2,
 
@@ -202,7 +203,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             randtest=otm,
 
             bits=EULER_BIN_EXPANSION,
-            template_size=9,
+            tempsize=9,
             blocksize=1033,  # nblocks=968
 
             statistic=8.965859,
@@ -325,7 +326,7 @@ def test_examples(randtest, bits, kwargs, statistic, p):
 
 
 @mark.parametrize(
-    "randtest, bits, kwargs, statistic, p",
+    "randtest, bits, kwargs, statistics, pvalues",
     [
         e(
             randtest=serial,
@@ -425,9 +426,30 @@ def test_examples(randtest, bits, kwargs, statistic, p):
         )
     ]
 )
-def test_multi_examples(randtest, bits, kwargs, statistic, p):
+def test_multi_examples(randtest, bits, kwargs, statistics, pvalues):
     result = randtest(bits, **kwargs)
-    for statistic, statistic_expect in zip(result.statistic, statistic):
+    for statistic, statistic_expect in zip(result.statistics, statistics):
         assert statistic_isclose(statistic, statistic_expect)
-    for p, p_expect in zip(result.p, p):
+    for p, p_expect in zip(result.pvalues, pvalues):
         assert p_isclose(p, p_expect)
+
+
+def test_notm_sub_example():
+    results = notm("10100100101110010110", tempsize=3, blocksize=10)
+    result = results[frozenbitarray("001")]
+    assert statistic_isclose(result.statistic, 2.133333)
+    assert p_isclose(result.p, 0.344154)
+
+
+def test_excursions_sub_example():
+    results = excursions("0110110101")
+    result = results[1]
+    assert statistic_isclose(result.statistic, 4.333033)
+    assert p_isclose(result.p, 0.502529)
+
+
+def test_excursions_variant_sub_example():
+    results = excursions_variant("0110110101")
+    result = results[1]
+    assert statistic_isclose(result.statistic, 4)
+    assert p_isclose(result.p, 0.683091)
