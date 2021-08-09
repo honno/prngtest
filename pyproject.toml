@@ -13,6 +13,7 @@ python = ">=3.8,<3.10"
 bitarray = "^2.2.4"
 # some later version requires normalisation for chisquare values which I cba with
 scipy = "1.5.4"
+numpy = "^1.21.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"

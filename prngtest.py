@@ -7,6 +7,7 @@ from numbers import Real
 from typing import (Iterable, Iterator, List, Literal, NamedTuple, Sequence,
                     Tuple, Union)
 
+import numpy as np
 from bitarray import bitarray, frozenbitarray
 from bitarray.util import ba2int
 from scipy.fft import fft
@@ -220,8 +221,9 @@ def spectral(bits) -> Result:
     if n % 2 != 0:
         a.pop()
     threshold = sqrt(log(1 / 0.05) * n)
-    # TODO github.com/ilanschnell/bitarray/blob/master/examples/ndarray.py
-    oscillations = [1 if b == 1 else -1 for b in a]
+    x = np.frombuffer(a.unpack(), dtype=np.bool_)
+    oscillations = x.astype(np.int8)
+    np.putmask(oscillations, ~x, np.int8(-1))
 
     fourier = fft(oscillations)
     half_fourier = fourier[: n // 2]
