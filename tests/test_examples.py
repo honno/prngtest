@@ -5,7 +5,7 @@ from pytest import mark, param
 
 from prngtest import *
 
-from .constants import EULER_BIN_EXPANSION
+from . import constants
 
 
 def statistic_isclose(statistic, statistic_expect):
@@ -137,7 +137,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
         e(
             randtest=matrix_rank,
 
-            bits=EULER_BIN_EXPANSION,
+            bits=constants.e,
             matrix_dimen=(32, 32),
 
             statistic=1.2619656,
@@ -202,7 +202,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
         e(
             randtest=otm,
 
-            bits=EULER_BIN_EXPANSION,
+            bits=constants.e,
             tempsize=9,
             blocksize=1033,  # nblocks=968
 
@@ -226,7 +226,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
         e(
             randtest=complexity,
 
-            bits=EULER_BIN_EXPANSION,
+            bits=constants.e,
             blocksize="1000",
 
             statistic=2.700348,
@@ -343,7 +343,7 @@ def test_examples(randtest, bits, kwargs, statistic, p):
         e(
             randtest=serial,
 
-            bits=EULER_BIN_EXPANSION,
+            bits=constants.e,
             blocksize=2,
 
             statistic=[0.339764, 0.336400],
@@ -352,7 +352,7 @@ def test_examples(randtest, bits, kwargs, statistic, p):
         e(
             randtest=excursions,
 
-            bits=EULER_BIN_EXPANSION,
+            bits=constants.e,
 
             statistic=[
                 3.835698,
@@ -381,7 +381,7 @@ def test_examples(randtest, bits, kwargs, statistic, p):
         e(
             randtest=excursions_variant,
 
-            bits=EULER_BIN_EXPANSION,
+            bits=constants.e,
 
             statistic=[
                 1450,
