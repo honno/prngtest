@@ -26,7 +26,7 @@ def e(randtest, **kwargs):
         e(longest_runs),
         e(matrix_rank),
         e(spectral),
-        e(otm, tempsize=10, blocksize=1000),
+        e(otm),
         e(universal),
         e(complexity),
         e(serial),
@@ -44,7 +44,7 @@ def test_randtests_pass_random_bits(randtest, kwargs):
 @mark.parametrize(
     "randtest, kwargs",
     [
-        e(notm, tempsize=9, blocksize=10000),
+        e(notm),
     ]
 )
 def test_multi_randtests_all_pass_random_bits(randtest, kwargs):

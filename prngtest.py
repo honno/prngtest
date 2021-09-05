@@ -153,7 +153,7 @@ def longest_runs(bits):
             maxlen = 0
         maxlen_bins[_binkey(intervals, maxlen)] += 1
 
-    blocksize_dists = {
+    blocksize_probs = {
         # blocksize: <bin interval probabilities>
         8: [0.2148, 0.3672, 0.2305, 0.1875],
         128: [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124],
@@ -161,7 +161,7 @@ def longest_runs(bits):
         1000: [0.1307, 0.2437, 0.2452, 0.1714, 0.1002, 0.1088],
         10000: [0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727],
     }
-    expected_bincounts = [prob * nblocks for prob in blocksize_dists[blocksize]]
+    expected_bincounts = [prob * nblocks for prob in blocksize_probs[blocksize]]
 
     chi2, p = chisquare(list(maxlen_bins.values()), expected_bincounts)
 
@@ -274,13 +274,13 @@ def otm(bits, tempsize: int, blocksize: int) -> Result:
     n = len(a)
     nblocks = n // blocksize
     a = a[: nblocks * blocksize]
-    template = frozenbitarray(1 for _ in range(tempsize))
+    temp = frozenbitarray(1 for _ in range(tempsize))
 
     block_matches = []
     for chunk in _chunked(a, nblocks, blocksize):
         matches = 0
         for window in _windowed(chunk, tempsize):
-            if window == template:
+            if window == temp:
                 matches += 1
         block_matches.append(matches)
 
@@ -296,8 +296,64 @@ def otm(bits, tempsize: int, blocksize: int) -> Result:
     return Result(chi2, p)
 
 
-def universal(bits, **kwargs):
-    pass
+def universal(bits, blocksize: int, init_nblocks: int):
+    a = frozenbitarray(bits)
+    n = len(a)
+    # defaults = {
+    #     # n: (blocksize, init_nblocks)
+    #     387840: (6, 640),
+    #     904960: (7, 1280),
+    #     2068480: (8, 2560),
+    #     4654080: (9, 5120),
+    #     10342400: (10, 10240),
+    #     22753280: (11, 20480),
+    #     49643520: (12, 40960),
+    #     107560960: (13, 81920),
+    #     231669760: (14, 163840),
+    #     496435200: (15, 327680),
+    #     1059061760: (16, 655360),
+    # }
+    nblocks = n // blocksize
+    test_nblocks = nblocks - init_nblocks
+    a = a[: nblocks * blocksize]
+    bnd = init_nblocks * blocksize
+    init, test = a[:bnd], a[bnd:]
+
+    last_temp_indices = defaultdict(int)
+    for i, temp in enumerate(_chunked(init, init_nblocks, blocksize), 1):
+        last_temp_indices[temp] = i
+
+    log2_gaps = 0
+    for i, temp in enumerate(_chunked(test, test_nblocks, blocksize), init_nblocks + 1):
+        gap = i - last_temp_indices[temp]
+        log2_gaps += log(gap, 2)
+        last_temp_indices[temp] = i
+
+    blocksize_probs = {
+        # blocksize: (mean, variance)
+        1: (0.7326495, 0.690),
+        2: (1.5374383, 1.338),
+        3: (2.4016068, 1.901),
+        4: (3.3112247, 2.358),
+        5: (4.2534266, 2.705),
+        6: (5.2177052, 2.954),
+        7: (6.1962507, 3.125),
+        8: (7.1836656, 3.238),
+        9: (8.1764248, 3.311),
+        10: (9.1723243, 3.356),
+        11: (10.170032, 3.384),
+        12: (11.168765, 3.401),
+        13: (12.168070, 3.410),
+        14: (13.167693, 3.416),
+        15: (14.167488, 3.419),
+        16: (15.167379, 3.421),
+    }
+    mean_expect, variance = blocksize_probs[blocksize]
+
+    norm_gaps = log2_gaps / test_nblocks
+    p = erfc(abs((norm_gaps - mean_expect) / (sqrt(2 * variance))))
+
+    return Result(norm_gaps, p)
 
 
 def complexity(bits, **kwargs):
