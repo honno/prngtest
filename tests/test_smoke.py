@@ -26,7 +26,7 @@ def e(randtest, **kwargs):
         e(longest_runs),
         e(matrix_rank),
         e(spectral),
-        e(otm),
+        e(otm, tempsize=10, blocksize=1000),
         e(universal),
         e(complexity),
         e(serial),

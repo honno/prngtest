@@ -63,7 +63,7 @@ def monobit(bits) -> Result:
     return Result(normdiff, p)
 
 
-def _chunked(a: BitArray, blocksize: int, nblocks: int) -> Iterator[BitArray]:
+def _chunked(a: BitArray, nblocks: int, blocksize: int) -> Iterator[BitArray]:
     for i in range(0, blocksize * nblocks, blocksize):
         yield a[i:i + blocksize]
 
@@ -74,7 +74,7 @@ def block_frequency(bits, blocksize: int) -> Result:
     nblocks = n // blocksize
 
     deviations = []
-    for chunk in _chunked(a, blocksize, nblocks):
+    for chunk in _chunked(a, nblocks, blocksize):
         ones = chunk.count(1)
         prop = ones / blocksize
         dev = prop - 1 / 2
@@ -131,7 +131,7 @@ def longest_runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
     defaults = {
-        # n: (blocksize, nblocks, intervals)
+        # n: (nblocks, blocksize, intervals)
         128: (8, 16, (1, 2, 3, 4)),
         6272: (128, 49, (4, 5, 6, 7, 8, 9)),
         750000: (10 ** 4, 75, (10, 11, 12, 13, 14, 15, 16)),
@@ -142,10 +142,10 @@ def longest_runs(bits):
         raise NotImplementedError(
             "Test implementation cannot handle sequences below length 128"
         ) from e
-    blocksize, nblocks, intervals = defaults[key]
+    nblocks, blocksize, intervals = defaults[key]
 
     maxlen_bins = {k: 0 for k in intervals}
-    for chunk in _chunked(a, blocksize, nblocks):
+    for chunk in _chunked(a, nblocks, blocksize):
         one_run_lengths = [len_ for val, len_ in _asruns(chunk) if val == 1]
         try:
             maxlen = max(one_run_lengths)
@@ -153,7 +153,7 @@ def longest_runs(bits):
             maxlen = 0
         maxlen_bins[_binkey(intervals, maxlen)] += 1
 
-    blocksize_probabilities = {
+    blocksize_dists = {
         # blocksize: <bin interval probabilities>
         8: [0.2148, 0.3672, 0.2305, 0.1875],
         128: [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124],
@@ -161,8 +161,7 @@ def longest_runs(bits):
         1000: [0.1307, 0.2437, 0.2452, 0.1714, 0.1002, 0.1088],
         10000: [0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727],
     }
-    probabilities = blocksize_probabilities[blocksize]
-    expected_bincounts = [prob * nblocks for prob in probabilities]
+    expected_bincounts = [prob * nblocks for prob in blocksize_dists[blocksize]]
 
     chi2, p = chisquare(list(maxlen_bins.values()), expected_bincounts)
 
@@ -193,8 +192,8 @@ def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
     nblocks = n // blocksize
 
     ranks = []
-    for chunk in _chunked(a, blocksize, nblocks):
-        matrix = _chunked(chunk, ncols, nrows)
+    for chunk in _chunked(a, nblocks, blocksize):
+        matrix = _chunked(chunk, nrows, ncols)
         rank = _gf2_matrix_rank(matrix)
         ranks.append(rank)
 
@@ -251,7 +250,7 @@ def notm(bits, tempsize: int, blocksize: int) -> ResultsMap:
     nblocks = n // blocksize
 
     block_counts = defaultdict(lambda: defaultdict(int))
-    for i, chunk in enumerate(_chunked(a, blocksize, nblocks)):
+    for i, chunk in enumerate(_chunked(a, nblocks, blocksize)):
         matches = defaultdict(int)
         for temp in _windowed(chunk, tempsize):
             matches[temp] += 1
@@ -270,8 +269,31 @@ def notm(bits, tempsize: int, blocksize: int) -> ResultsMap:
     return results
 
 
-def otm(bits, **kwargs):
-    pass
+def otm(bits, tempsize: int, blocksize: int) -> Result:
+    a = frozenbitarray(bits)
+    n = len(a)
+    nblocks = n // blocksize
+    a = a[: nblocks * blocksize]
+    template = frozenbitarray(1 for _ in range(tempsize))
+
+    block_matches = []
+    for chunk in _chunked(a, nblocks, blocksize):
+        matches = 0
+        for window in _windowed(chunk, tempsize):
+            if window == template:
+                matches += 1
+        block_matches.append(matches)
+
+    tallies = [0, 0, 0, 0, 0, 0]
+    for matches in block_matches:
+        tallies[min(matches, 5)] += 1
+
+    tally_dist = [0.367879, 0.183939, 0.137954, 0.099634, 0.069935, 0.140656]
+    expected_tallies = [prob * nblocks for prob in tally_dist]
+
+    chi2, p = chisquare(tallies, expected_tallies)
+
+    return Result(chi2, p)
 
 
 def universal(bits, **kwargs):
