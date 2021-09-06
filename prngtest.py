@@ -4,7 +4,8 @@ from functools import lru_cache
 from itertools import product
 from math import erfc, log, sqrt
 from numbers import Real
-from typing import Iterable, Iterator, List, Literal, NamedTuple, Tuple, Union
+from typing import (Dict, Iterable, Iterator, List, Literal, NamedTuple, Tuple,
+                    Union)
 
 import numpy as np
 from bitarray import bitarray, frozenbitarray
@@ -35,6 +36,16 @@ __all__ = [
 class Result(NamedTuple):
     statistic: Union[int, float]
     p: float
+
+
+class ResultsTuple(tuple):
+    @property
+    def statistics(self) -> List[float]:
+        return [result.statistic for result in self]
+
+    @property
+    def pvalues(self) -> List[float]:
+        return [result.p for result in self]
 
 
 class ResultsMap(dict):
@@ -240,7 +251,7 @@ def _windowed(a: bitarray, blocksize: int) -> Iterator[bitarray]:
         yield a[i:i + blocksize]
 
 
-def notm(bits, tempsize: int, blocksize: int) -> ResultsMap:
+def notm(bits, tempsize: int, blocksize: int) -> Dict[bitarray, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     nblocks = n // blocksize
@@ -292,7 +303,7 @@ def otm(bits, tempsize: int, blocksize: int) -> Result:
     return Result(chi2, p)
 
 
-def universal(bits, blocksize: int, init_nblocks: int):
+def universal(bits, blocksize: int, init_nblocks: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     # defaults = {
@@ -379,7 +390,7 @@ def _berlekamp_massey(a: bitarray) -> int:
     return min_size
 
 
-def complexity(bits, blocksize: int):
+def complexity(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     nblocks = n // blocksize
@@ -405,8 +416,31 @@ def complexity(bits, blocksize: int):
     return Result(chi2, p)
 
 
-def serial(bits, **kwargs):
-    pass
+def serial(bits, blocksize) -> Tuple[Result, Result]:
+    a = frozenbitarray(bits)
+    n = len(a)
+
+    normsums = {}
+    for window_size in [blocksize, blocksize - 1, blocksize - 2]:
+        if window_size > 0:
+            ouroboros = a + a[: window_size - 1]
+            counts = defaultdict(int)
+            for window in _windowed(ouroboros, window_size):
+                counts[window] += 1
+            sum_squares = sum(count ** 2 for count in counts.values())
+            normsum = (2 ** window_size / n) * sum_squares - n
+        else:
+            normsum = 0
+        normsums[window_size] = normsum
+
+    normsum_delta1 = normsums[blocksize] - normsums[blocksize - 1]
+    p1 = gammaincc(2 ** (blocksize - 2), normsum_delta1 / 2)
+    normsum_delta2 = normsums[blocksize] - 2 * normsums[blocksize - 1] + normsums[blocksize - 2]
+    p2 = gammaincc(2 ** (blocksize - 3), normsum_delta2 / 2)
+
+    return ResultsTuple(
+        (Result(normsum_delta1, p1), Result(normsum_delta2, p2))
+    )
 
 
 def apen(bits, **kwargs):
