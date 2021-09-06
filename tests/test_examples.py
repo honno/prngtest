@@ -227,7 +227,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             randtest=complexity,
 
             bits=constants.e,
-            blocksize="1000",
+            blocksize=1000,
 
             statistic=2.700348,
             p=0.845406,

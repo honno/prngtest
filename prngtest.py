@@ -4,12 +4,11 @@ from functools import lru_cache
 from itertools import product
 from math import erfc, log, sqrt
 from numbers import Real
-from typing import (Iterable, Iterator, List, Literal, NamedTuple, Sequence,
-                    Tuple, Union)
+from typing import Iterable, Iterator, List, Literal, NamedTuple, Tuple, Union
 
 import numpy as np
 from bitarray import bitarray, frozenbitarray
-from bitarray.util import ba2int
+from bitarray.util import ba2int, zeros
 from scipy.fft import fft
 from scipy.special import gammaincc
 from scipy.stats import chisquare
@@ -31,9 +30,6 @@ __all__ = [
     "excursions",
     "excursions_variant",
 ]
-
-
-BitArray = Sequence[Literal[0, 1]]
 
 
 class Result(NamedTuple):
@@ -63,7 +59,7 @@ def monobit(bits) -> Result:
     return Result(normdiff, p)
 
 
-def _chunked(a: BitArray, nblocks: int, blocksize: int) -> Iterator[BitArray]:
+def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
     for i in range(0, blocksize * nblocks, blocksize):
         yield a[i:i + blocksize]
 
@@ -86,7 +82,7 @@ def block_frequency(bits, blocksize: int) -> Result:
     return Result(chi2, p)
 
 
-def _asruns(a: BitArray) -> Iterator[Tuple[Literal[0, 1], int]]:
+def _asruns(a: bitarray) -> Iterator[Tuple[Literal[0, 1], int]]:
     run_val = a[0]
     run_len = 1
     for value in a[1:]:
@@ -118,7 +114,7 @@ def runs(bits):
 
 @lru_cache
 def _binkey(okeys: Tuple[Real], key: Real) -> Real:
-    i = bisect_left(okeys, key)
+    i = min(bisect_left(okeys, key), len(okeys) - 1)
     left = okeys[i - 1]
     right = okeys[i]
     if abs(left - key) < abs(right - key):
@@ -154,7 +150,7 @@ def longest_runs(bits):
         maxlen_bins[_binkey(intervals, maxlen)] += 1
 
     blocksize_probs = {
-        # blocksize: <bin interval probabilities>
+        # blocksize: <bin interval probs>
         8: [0.2148, 0.3672, 0.2305, 0.1875],
         128: [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124],
         512: [0.1170, 0.2460, 0.2523, 0.1755, 0.1027, 0.1124],
@@ -168,7 +164,7 @@ def longest_runs(bits):
     return Result(chi2, p)
 
 
-def _gf2_matrix_rank(matrix: Iterable[BitArray]) -> int:
+def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
     numbers = [ba2int(a) for a in matrix]
 
     rank = 0
@@ -238,7 +234,7 @@ def spectral(bits) -> Result:
     return Result(normdiff, p)
 
 
-def _windowed(a: BitArray, blocksize: int) -> Iterator[BitArray]:
+def _windowed(a: bitarray, blocksize: int) -> Iterator[bitarray]:
     n = len(a)
     for i in range(0, n - blocksize + 1):
         yield a[i:i + blocksize]
@@ -356,8 +352,57 @@ def universal(bits, blocksize: int, init_nblocks: int):
     return Result(norm_gaps, p)
 
 
-def complexity(bits, **kwargs):
-    pass
+def _berlekamp_massey(a: bitarray) -> int:
+    n = len(a)
+    errloc = zeros(n)
+    errloc[0] = 1
+    min_size = 0
+    nloops = -1
+    errlock_prev = errloc.copy()
+
+    for i, bit in enumerate(a):
+        discrepancy = bit
+        for bit1, bit2 in zip(a[i - min_size:i][::-1], errloc[1: min_size + 1]):
+            product = bit1 & bit2
+            discrepancy = discrepancy ^ product
+        if discrepancy:
+            errloc_temp = errloc.copy()
+            recalc = bitarray(
+                bit1 ^ bit2 for bit1, bit2 in zip(errloc[i - nloops: n], errlock_prev)
+            )
+            errloc[i - nloops: n] = recalc
+            if min_size <= i / 2:
+                min_size = i + 1 - min_size
+                nloops = i
+                errlock_prev = errloc_temp
+
+    return min_size
+
+
+def complexity(bits, blocksize: int):
+    a = frozenbitarray(bits)
+    n = len(a)
+    nblocks = n // blocksize
+    a = a[: nblocks * blocksize]
+    mean_expect = (
+        blocksize / 2 +
+        (9 + (-(1 ** (blocksize + 1)))) / 36 -
+        (blocksize / 3 + 2 / 9) / 2 ** blocksize
+    )
+
+    intervals = (-3, -2, -1, 0, 1, 2, 3)
+    variance_bins = {k: 0 for k in [-3, -2, -1, 0, 1, 2, 3]}
+    for chunk in _chunked(a, nblocks, blocksize):
+        lin_complex = _berlekamp_massey(chunk)
+        variance = (-1) ** blocksize * (lin_complex - mean_expect) + 2 / 9
+        variance_bins[_binkey(intervals, variance)] += 1
+
+    probs = [0.010417, 0.03125, 0.125, 0.5, 0.25, 0.0625, 0.020833]
+    expected_bincounts = [nblocks * prob for prob in probs]
+
+    chi2, p = chisquare(list(variance_bins.values()), expected_bincounts)
+
+    return Result(chi2, p)
 
 
 def serial(bits, **kwargs):
