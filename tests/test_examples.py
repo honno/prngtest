@@ -265,7 +265,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.235301,
         ),
         e(
-            randtest=cusum,
+            randtest=cumsum,
 
             bits="1011010111",
 
@@ -273,7 +273,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.4116588,
         ),
         e(
-            randtest=cusum,
+            randtest=cumsum,
 
             bits=(
                 "11001001"
@@ -295,7 +295,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.219194,
         ),
         e(
-            randtest=cusum,
+            randtest=cumsum,
 
             bits=(
                 "11001001"

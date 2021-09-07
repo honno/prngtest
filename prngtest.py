@@ -1,7 +1,7 @@
 from bisect import bisect_left
 from collections import defaultdict
 from functools import lru_cache
-from math import erfc, log, sqrt
+from math import erfc, floor, log, sqrt
 from numbers import Real
 from typing import (Dict, Iterable, Iterator, List, Literal, NamedTuple, Tuple,
                     Union)
@@ -11,7 +11,7 @@ from bitarray import bitarray, frozenbitarray
 from bitarray.util import ba2int, int2ba, zeros
 from scipy.fft import fft
 from scipy.special import gammaincc
-from scipy.stats import chisquare
+from scipy.stats import chisquare, norm
 
 __all__ = [
     "monobit",
@@ -26,7 +26,7 @@ __all__ = [
     "complexity",
     "serial",
     "apen",
-    "cusum",
+    "cumsum",
     "excursions",
     "excursions_variant",
 ]
@@ -220,15 +220,20 @@ def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
     return Result(chi2, p)
 
 
+def _oscillate(a: bitarray) -> np.ndarray:
+    x = np.frombuffer(a.unpack(), dtype=np.bool_)
+    oscillations = x.astype(np.int8)
+    np.putmask(oscillations, ~x, np.int8(-1))
+    return oscillations
+
+
 def spectral(bits) -> Result:
     a = bitarray(bits)
     n = len(a)
     if n % 2 != 0:
         a.pop()
     threshold = sqrt(log(1 / 0.05) * n)
-    x = np.frombuffer(a.unpack(), dtype=np.bool_)
-    oscillations = x.astype(np.int8)
-    np.putmask(oscillations, ~x, np.int8(-1))
+    oscillations = _oscillate(a)
 
     fourier = fft(oscillations)
     half_fourier = fourier[: n // 2]
@@ -463,8 +468,33 @@ def apen(bits, blocksize: int) -> Result:
     return Result(chi2, p)
 
 
-def cusum(bits, **kwargs):
-    pass
+def cumsum(bits, reverse: bool = False) -> Result:
+    a = frozenbitarray(bits)
+    n = len(a)
+    oscillations = _oscillate(a)
+    if reverse:
+        oscillations = oscillations[::-1]
+
+    sums = np.cumsum(oscillations)
+    abs_sums = np.abs(sums)
+
+    max_sum = abs_sums.max()
+    # TODO: do this more declaratively to remove the need for eye bleach
+    p = (
+        1 -
+        sum(
+            norm.cdf((4 * k + 1) * max_sum / sqrt(n)) -
+            norm.cdf((4 * k - 1) * max_sum / sqrt(n))
+            for k in np.arange(floor((-n / max_sum + 1) / 4), floor((n / max_sum - 1) / 4) + 1, 1)
+        ) +
+        sum(
+            norm.cdf((4 * k + 3) * max_sum / sqrt(n)) -
+            norm.cdf((4 * k + 1) * max_sum / sqrt(n))
+            for k in np.arange(floor((-n / max_sum - 3) / 4), floor((n / max_sum - 1) / 4) + 1, 1)
+        )
+    )
+
+    return Result(max_sum, p)
 
 
 def excursions(bits, **kwargs):
