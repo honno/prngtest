@@ -37,26 +37,6 @@ class Result(NamedTuple):
     p: float
 
 
-class ResultsTuple(tuple):
-    @property
-    def statistics(self) -> List[float]:
-        return [result.statistic for result in self]
-
-    @property
-    def pvalues(self) -> List[float]:
-        return [result.p for result in self]
-
-
-class ResultsMap(dict):
-    @property
-    def statistics(self) -> List[float]:
-        return [result.statistic for result in self.values()]
-
-    @property
-    def pvalues(self) -> List[float]:
-        return [result.p for result in self.values()]
-
-
 def monobit(bits) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
@@ -222,9 +202,9 @@ def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
 
 def _oscillate(a: bitarray) -> np.ndarray:
     x = np.frombuffer(a.unpack(), dtype=np.bool_)
-    oscillations = x.astype(np.int8)
-    np.putmask(oscillations, ~x, np.int8(-1))
-    return oscillations
+    o = x.astype(np.int8)
+    np.putmask(o, ~x, np.int8(-1))
+    return o
 
 
 def spectral(bits) -> Result:
@@ -233,9 +213,9 @@ def spectral(bits) -> Result:
     if n % 2 != 0:
         a.pop()
     threshold = sqrt(log(1 / 0.05) * n)
-    oscillations = _oscillate(a)
 
-    fourier = fft(oscillations)
+    o = _oscillate(a)
+    fourier = fft(o)
     half_fourier = fourier[: n // 2]
     peaks = [abs(n) for n in half_fourier]
     nbelow = sum(p < threshold for p in peaks)
@@ -247,6 +227,16 @@ def spectral(bits) -> Result:
     p = erfc(abs(normdiff) / sqrt(2))
 
     return Result(normdiff, p)
+
+
+class ResultsMap(dict):
+    @property
+    def statistics(self) -> List[float]:
+        return [result.statistic for result in self.values()]
+
+    @property
+    def pvalues(self) -> List[float]:
+        return [result.p for result in self.values()]
 
 
 def _windowed(a: bitarray, blocksize: int) -> Iterator[bitarray]:
@@ -421,6 +411,16 @@ def complexity(bits, blocksize: int) -> Result:
     return Result(chi2, p)
 
 
+class ResultsTuple(tuple):
+    @property
+    def statistics(self) -> List[float]:
+        return [result.statistic for result in self]
+
+    @property
+    def pvalues(self) -> List[float]:
+        return [result.p for result in self]
+
+
 def serial(bits, blocksize) -> Tuple[Result, Result]:
     a = frozenbitarray(bits)
     n = len(a)
@@ -471,11 +471,11 @@ def apen(bits, blocksize: int) -> Result:
 def cumsum(bits, reverse: bool = False) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
-    oscillations = _oscillate(a)
-    if reverse:
-        oscillations = oscillations[::-1]
 
-    sums = np.cumsum(oscillations)
+    o = _oscillate(a)
+    if reverse:
+        o = o[::-1]
+    sums = np.cumsum(o)
     abs_sums = np.abs(sums)
 
     max_sum = abs_sums.max()
@@ -497,8 +497,45 @@ def cumsum(bits, reverse: bool = False) -> Result:
     return Result(max_sum, p)
 
 
-def excursions(bits, **kwargs):
-    pass
+def _ascycles(x: np.ndarray) -> Iterator[np.ndarray]:
+    split_at = np.arange(x.size)[x == 0]
+    yield from np.split(x, split_at)
+
+
+def excursions(bits) -> Dict[int, Result]:
+    a = frozenbitarray(bits)
+
+    o = _oscillate(a)
+    sums = np.cumsum(o)
+    states = (-4, -3, -2, -1, 1, 2, 3, 4)
+    intervals = (0, 1, 2, 3, 4, 5)
+    state_count_bins = {state: {i: 0 for i in intervals} for state in states}
+    ncycles = 0
+    for cycle in _ascycles(sums):
+        ncycles += 1
+        state_counts = defaultdict(int, dict(zip(*np.unique(cycle, return_counts=True))))
+        for state in states:
+            count = state_counts[state]
+            state_count_bins[state][_binkey(intervals, count)] += 1
+
+    state_count_probs = {
+        # state: <bin interval probabilities>
+        1: [0.5000, 0.2500, 0.1250, 0.0625, 0.0312, 0.0312],
+        2: [0.7500, 0.0625, 0.0469, 0.0352, 0.0264, 0.0791],
+        3: [0.8333, 0.0278, 0.0231, 0.0193, 0.0161, 0.0804],
+        4: [0.8750, 0.0156, 0.0137, 0.0120, 0.0105, 0.0733],
+        # 5: [0.9000, 0.0100, 0.0090, 0.0081, 0.0073, 0.0656],
+        # 6: [0.9167, 0.0069, 0.0064, 0.0058, 0.0053, 0.0588],
+        # 7: [0.9286, 0.0051, 0.0047, 0.0044, 0.0041, 0.0531],
+    }
+
+    results = ResultsMap()
+    for state in states:
+        expected_bin_counts = [ncycles * prob for prob in state_count_probs[abs(state)]]
+        chi2, p = chisquare(list(state_count_bins[state].values()), expected_bin_counts)
+        results[state] = Result(chi2, p)
+
+    return results
 
 
 def excursions_variant(bits, **kwargs):
