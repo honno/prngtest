@@ -31,7 +31,7 @@ def e(randtest, **kwargs):
         e(complexity),
         e(serial),
         e(apen),
-        e(cusum),
+        e(cumsum),
         e(excursions),
         e(excursions_variant),
     ]

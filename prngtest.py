@@ -118,21 +118,21 @@ def longest_runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
     defaults = {
-        # n: (nblocks, blocksize, intervals)
+        # n: (blocksize, nblocks, intervals)
         128: (8, 16, (1, 2, 3, 4)),
         6272: (128, 49, (4, 5, 6, 7, 8, 9)),
         750000: (10 ** 4, 75, (10, 11, 12, 13, 14, 15, 16)),
     }
     try:
-        key = min(k for k in defaults.keys() if k >= n)
+        key = max(k for k in defaults.keys() if k <= n)
     except ValueError as e:
         raise NotImplementedError(
             "Test implementation cannot handle sequences below length 128"
         ) from e
-    nblocks, blocksize, intervals = defaults[key]
+    blocksize, nblocks, intervals = defaults[key]
 
     max_len_bins = {k: 0 for k in intervals}
-    for chunk in _chunked(a, nblocks, blocksize):
+    for chunk in _chunked(a[:nblocks * blocksize], nblocks, blocksize):
         one_run_lengths = [len_ for val, len_ in _asruns(chunk) if val == 1]
         try:
             max_len = max(one_run_lengths)
@@ -148,7 +148,8 @@ def longest_runs(bits):
         1000: [0.1307, 0.2437, 0.2452, 0.1714, 0.1002, 0.1088],
         10000: [0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727],
     }
-    expected_bin_counts = [prob * nblocks for prob in blocksize_probs[blocksize]]
+    key = max(k for k in blocksize_probs.keys() if k <= blocksize)
+    expected_bin_counts = [prob * nblocks for prob in blocksize_probs[key]]
 
     chi2, p = chisquare(list(max_len_bins.values()), expected_bin_counts)
 
