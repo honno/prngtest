@@ -3,7 +3,23 @@ from math import isclose
 from bitarray import frozenbitarray
 from pytest import mark, param
 
-from prngtest import *
+from prngtest import (
+    apen,
+    block_frequency,
+    block_runs,
+    complexity,
+    cumsum,
+    excursions,
+    excursions_variant,
+    matrix,
+    monobit,
+    notm,
+    otm,
+    runs,
+    serial,
+    spectral,
+    universal,
+)
 
 from . import constants
 
@@ -37,15 +53,12 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
     [
         e(
             randtest=monobit,
-
             bits="1011010101",
-
-            statistic=.632455532,
+            statistic=0.632455532,
             p=0.527089,
         ),
         e(
             randtest=monobit,
-
             bits=(
                 "11001001"
                 "00001111"
@@ -66,7 +79,6 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
         ),
         e(
             randtest=block_frequency,
-
             bits=(
                 "1100100100"
                 "0011111101"
@@ -80,24 +92,17 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
                 "0010111000"
             ),
             blocksize=10,
-
             statistic=7.2,
             p=0.706438,
         ),
         e(
             randtest=runs,
-
-            bits=(
-                "10011010"
-                "11"
-            ),
-
+            bits=("10011010" "11"),
             statistic=7,
             p=0.147232,
         ),
         e(
             randtest=block_runs,
-
             bits=(
                 "11001100"
                 "00010101"
@@ -116,48 +121,34 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
                 "11011000"
                 "10110010"
             ),
-
-
             statistic=4.882605,
             p=0.180609,
         ),
         e(
             randtest=matrix,
-
-            bits=(
-                "01011001"
-                "00101010"
-                "1101"
-            ),
+            bits=("01011001" "00101010" "1101"),
             matrix_dimen=(3, 3),
-
             statistic=0.596953,
             p=0.741948,
         ),
         e(
             randtest=matrix,
-
             bits=constants.e[:100_000],
             matrix_dimen=(32, 32),
-
             statistic=1.2619656,
             p=0.532069,
         ),
         e(
             randtest=spectral,
-
             bits="1001010011",
-
             statistic=-2.176429,
             p=0.029523,
-
             # DFT in sts has 1 peak above threshold, should be 0
             # also we use FFT and not a naive approach
             xfail=True,
         ),
         e(
             randtest=spectral,
-
             bits=(
                 "11001001"
                 "00001111"
@@ -173,15 +164,12 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
                 "10001011"
                 "1000"
             ),
-
             statistic=-1.376494,
             p=0.168669,
-
             xfail=True,
         ),
         e(
             randtest=otm,
-
             bits=(
                 "1011101111"
                 "0010110110"  # Modifed 2nd block of SP800-22 e
@@ -192,58 +180,43 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             tempsize=2,
             blocksize=10,  # nblocks=5
             df=2,
-
             statistic=3.167729,
             p=0.274932,
-
             # p off by ~0.07 if gammaincc(df/2, statistic/2) w/ df=2
             xfail=True,
         ),
         e(
             randtest=otm,
-
             bits=constants.e,
             tempsize=9,
             blocksize=1033,  # nblocks=968
-
             statistic=8.965859,
-            p=0.110434
+            p=0.110434,
         ),
         e(
             randtest=universal,
-
-            bits=(
-                "01011010"
-                "01110101"
-                "0111"
-            ),
+            bits=("01011010" "01110101" "0111"),
             blocksize=2,
             init_nblocks=4,
-
             statistic=1.1949875,
             p=0.767189,
         ),
         e(
             randtest=complexity,
-
             bits=constants.e,
             blocksize=1000,
-
             statistic=2.700348,
             p=0.845406,
         ),
         e(
             randtest=apen,
-
             bits="0100110101",
             blocksize=3,
-
             statistic=10.043859999999999,  # SP800-22 erroneously had 0.502193
             p=0.261961,
         ),
         e(
             randtest=apen,
-
             bits=(
                 "11001001"
                 "00001111"
@@ -260,21 +233,17 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
                 "1000"
             ),
             blocksize=2,
-
             statistic=5.550792,
             p=0.235301,
         ),
         e(
             randtest=cumsum,
-
             bits="1011010111",
-
             statistic=4,
             p=0.4116588,
         ),
         e(
             randtest=cumsum,
-
             bits=(
                 "11001001"
                 "00001111"
@@ -290,13 +259,11 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
                 "10001011"
                 "1000"
             ),
-
             statistic=16,
             p=0.219194,
         ),
         e(
             randtest=cumsum,
-
             bits=(
                 "11001001"
                 "00001111"
@@ -313,11 +280,10 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
                 "1000"
             ),
             reverse=True,
-
             statistic=19,
             p=0.114866,
         ),
-    ]
+    ],
 )
 def test_examples(randtest, bits, kwargs, statistic, p):
     result = randtest(bits, **kwargs)
@@ -330,30 +296,23 @@ def test_examples(randtest, bits, kwargs, statistic, p):
     [
         e(
             randtest=serial,
-
             bits="0011011101",
             blocksize=3,
-
             statistic=[1.6, 0.8],
             p=[0.9057, 0.8805],
-
             # SP800-22's result is not replicated by sts
-            xfail=True
+            xfail=True,
         ),
         e(
             randtest=serial,
-
             bits=constants.e,
             blocksize=2,
-
             statistic=[0.339764, 0.336400],
             p=[0.843764, 0.561915],
         ),
         e(
             randtest=excursions,
-
             bits=constants.e,
-
             statistic=[
                 3.835698,
                 7.318707,
@@ -374,15 +333,12 @@ def test_examples(randtest, bits, kwargs, statistic, p):
                 0.790853,
                 0.792378,
             ],
-
             # SP800-22's result is not replicated by sts
-            xfail=True
+            xfail=True,
         ),
         e(
             randtest=excursions_variant,
-
             bits=constants.e,
-
             statistic=[
                 1450,
                 1435,
@@ -422,9 +378,9 @@ def test_examples(randtest, bits, kwargs, statistic, p):
                 0.512207,
                 0.538635,
                 0.593930,
-            ]
-        )
-    ]
+            ],
+        ),
+    ],
 )
 def test_multi_examples(randtest, bits, kwargs, statistics, pvalues):
     result = randtest(bits, **kwargs)

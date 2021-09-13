@@ -3,8 +3,7 @@ from collections import defaultdict
 from functools import lru_cache
 from math import erfc, floor, log, sqrt
 from numbers import Real
-from typing import (Dict, Iterable, Iterator, List, Literal, NamedTuple, Tuple,
-                    Union)
+from typing import Dict, Iterable, Iterator, List, Literal, NamedTuple, Tuple, Union
 
 import numpy as np
 from bitarray import bitarray, frozenbitarray
@@ -52,7 +51,7 @@ def monobit(bits) -> Result:
 
 def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
     for i in range(0, nblocks * blocksize, blocksize):
-        yield a[i:i + blocksize]
+        yield a[i : i + blocksize]
 
 
 def block_frequency(bits, blocksize: int) -> Result:
@@ -96,8 +95,8 @@ def runs(bits):
 
     nruns = sum(1 for _ in _asruns(a))
     p = erfc(
-        abs(nruns - (2 * ones * prop_zeros)) /
-        (2 * sqrt(2 * n) * prop_ones * prop_zeros)
+        abs(nruns - (2 * ones * prop_zeros))
+        / (2 * sqrt(2 * n) * prop_ones * prop_zeros)
     )
 
     return Result(nruns, p)
@@ -132,7 +131,7 @@ def block_runs(bits):
     blocksize, nblocks, intervals = defaults[key]
 
     max_len_bins = {k: 0 for k in intervals}
-    for chunk in _chunked(a[:nblocks * blocksize], nblocks, blocksize):
+    for chunk in _chunked(a[: nblocks * blocksize], nblocks, blocksize):
         one_run_lengths = [len_ for val, len_ in _asruns(chunk) if val == 1]
         try:
             max_len = max(one_run_lengths)
@@ -241,7 +240,7 @@ class ResultsMap(dict):
 def _windowed(a: bitarray, blocksize: int) -> Iterator[bitarray]:
     n = len(a)
     for i in range(0, n - blocksize + 1):
-        yield a[i:i + blocksize]
+        yield a[i : i + blocksize]
 
 
 def _product(length: int) -> Iterator[frozenbitarray]:
@@ -263,7 +262,9 @@ def notm(bits, tempsize: int, blocksize: int) -> Dict[bitarray, Result]:
             block_counts[temp][i] = count
 
     count_expect = (blocksize - tempsize + 1) / 2 ** tempsize
-    variance = blocksize * ((1 / 2 ** tempsize) - ((2 * tempsize - 1) / 2 ** (2 * tempsize)))
+    variance = blocksize * (
+        (1 / 2 ** tempsize) - ((2 * tempsize - 1) / 2 ** (2 * tempsize))
+    )
     results = ResultsMap()
     for temp in _product(tempsize):
         count_diffs = [block_counts[temp][b] - count_expect for b in range(nblocks)]
@@ -367,15 +368,15 @@ def _berlekamp_massey(a: bitarray) -> int:
 
     for i, bit in enumerate(a):
         discrepancy = bit
-        for bit1, bit2 in zip(a[i - min_size:i][::-1], errloc[1: min_size + 1]):
+        for bit1, bit2 in zip(a[i - min_size : i][::-1], errloc[1 : min_size + 1]):
             product = bit1 & bit2
             discrepancy = discrepancy ^ product
         if discrepancy:
             errloc_temp = errloc.copy()
             recalc = bitarray(
-                bit1 ^ bit2 for bit1, bit2 in zip(errloc[i - nloops: n], errlock_prev)
+                bit1 ^ bit2 for bit1, bit2 in zip(errloc[i - nloops : n], errlock_prev)
             )
-            errloc[i - nloops: n] = recalc
+            errloc[i - nloops : n] = recalc
             if min_size <= i / 2:
                 min_size = i + 1 - min_size
                 nloops = i
@@ -390,9 +391,9 @@ def complexity(bits, blocksize: int) -> Result:
     nblocks = n // blocksize
     a = a[: nblocks * blocksize]
     mean_expect = (
-        blocksize / 2 +
-        (9 + (-(1 ** (blocksize + 1)))) / 36 -
-        (blocksize / 3 + 2 / 9) / 2 ** blocksize
+        blocksize / 2
+        + (9 + (-(1 ** (blocksize + 1)))) / 36
+        - (blocksize / 3 + 2 / 9) / 2 ** blocksize
     )
 
     intervals = (-3, -2, -1, 0, 1, 2, 3)
@@ -438,12 +439,12 @@ def serial(bits, blocksize) -> Tuple[Result, Result]:
 
     norm_sum_delta1 = norm_sums[blocksize] - norm_sums[blocksize - 1]
     p1 = gammaincc(2 ** (blocksize - 2), norm_sum_delta1 / 2)
-    normsum_delta2 = norm_sums[blocksize] - 2 * norm_sums[blocksize - 1] + norm_sums[blocksize - 2]
+    normsum_delta2 = (
+        norm_sums[blocksize] - 2 * norm_sums[blocksize - 1] + norm_sums[blocksize - 2]
+    )
     p2 = gammaincc(2 ** (blocksize - 3), normsum_delta2 / 2)
 
-    return ResultsTuple(
-        (Result(norm_sum_delta1, p1), Result(normsum_delta2, p2))
-    )
+    return ResultsTuple((Result(norm_sum_delta1, p1), Result(normsum_delta2, p2)))
 
 
 def apen(bits, blocksize: int) -> Result:
@@ -480,16 +481,20 @@ def cumsum(bits, reverse: bool = False) -> Result:
     max_sum = abs_sums.max()
     # TODO: do this more declaratively to remove the need for eye bleach
     p = (
-        1 -
-        sum(
-            norm.cdf((4 * k + 1) * max_sum / sqrt(n)) -
-            norm.cdf((4 * k - 1) * max_sum / sqrt(n))
-            for k in np.arange(floor((-n / max_sum + 1) / 4), floor((n / max_sum - 1) / 4) + 1, 1)
-        ) +
-        sum(
-            norm.cdf((4 * k + 3) * max_sum / sqrt(n)) -
+        1
+        - sum(
             norm.cdf((4 * k + 1) * max_sum / sqrt(n))
-            for k in np.arange(floor((-n / max_sum - 3) / 4), floor((n / max_sum - 1) / 4) + 1, 1)
+            - norm.cdf((4 * k - 1) * max_sum / sqrt(n))
+            for k in np.arange(
+                floor((-n / max_sum + 1) / 4), floor((n / max_sum - 1) / 4) + 1, 1
+            )
+        )
+        + sum(
+            norm.cdf((4 * k + 3) * max_sum / sqrt(n))
+            - norm.cdf((4 * k + 1) * max_sum / sqrt(n))
+            for k in np.arange(
+                floor((-n / max_sum - 3) / 4), floor((n / max_sum - 1) / 4) + 1, 1
+            )
         )
     )
 
@@ -512,7 +517,9 @@ def excursions(bits) -> Dict[int, Result]:
     ncycles = 0
     for cycle in _ascycles(sums):
         ncycles += 1
-        state_counts = defaultdict(int, dict(zip(*np.unique(cycle, return_counts=True))))
+        state_counts = defaultdict(
+            int, dict(zip(*np.unique(cycle, return_counts=True)))
+        )
         for state in states:
             count = state_counts[state]
             state_count_bins[state][_binkey(intervals, count)] += 1
