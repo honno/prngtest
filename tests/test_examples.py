@@ -96,7 +96,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.147232,
         ),
         e(
-            randtest=longest_runs,
+            randtest=block_runs,
 
             bits=(
                 "11001100"
@@ -122,7 +122,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.180609,
         ),
         e(
-            randtest=matrix_rank,
+            randtest=matrix,
 
             bits=(
                 "01011001"
@@ -135,9 +135,9 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.741948,
         ),
         e(
-            randtest=matrix_rank,
+            randtest=matrix,
 
-            bits=constants.e,
+            bits=constants.e[:100_000],
             matrix_dimen=(32, 32),
 
             statistic=1.2619656,

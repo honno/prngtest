@@ -17,8 +17,8 @@ __all__ = [
     "monobit",
     "block_frequency",
     "runs",
-    "longest_runs",
-    "matrix_rank",
+    "block_runs",
+    "matrix",
     "spectral",
     "notm",
     "otm",
@@ -51,7 +51,7 @@ def monobit(bits) -> Result:
 
 
 def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
-    for i in range(0, blocksize * nblocks, blocksize):
+    for i in range(0, nblocks * blocksize, blocksize):
         yield a[i:i + blocksize]
 
 
@@ -114,7 +114,7 @@ def _binkey(okeys: Tuple[Real], key: Real) -> Real:
         return right
 
 
-def longest_runs(bits):
+def block_runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
     defaults = {
@@ -158,7 +158,6 @@ def longest_runs(bits):
 
 def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
     nums = [ba2int(a) for a in matrix]
-
     rank = 0
     while len(nums) > 0:
         pivot = nums.pop()
@@ -168,11 +167,10 @@ def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
             for i, num in enumerate(nums):
                 if lsb & num:
                     nums[i] = num ^ pivot
-
     return rank
 
 
-def matrix_rank(bits, matrix_dimen: Tuple[int, int]) -> Result:
+def matrix(bits, matrix_dimen: Tuple[int, int]) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     nrows, ncols = matrix_dimen

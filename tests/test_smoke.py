@@ -1,5 +1,5 @@
 from bitarray.util import urandom
-from pytest import mark, param
+from pytest import mark
 
 from prngtest import *
 
@@ -7,33 +7,20 @@ from prngtest import *
 a = urandom(1_000_000)
 
 
-# TODO remove this and call functions with no kwargs once they can be inferred
-def e(randtest, **kwargs):
-    if len(kwargs) == 0:
-        name = randtest.__name__
-    else:
-        f_kwargs = ", ".join(f"{k}={repr(v)}" for k, v in kwargs.items())
-        name = f"{randtest.__name__}({f_kwargs})"
-    return param(randtest, kwargs, id=name)
-
-
 @mark.parametrize(
     "randtest, kwargs",
     [
-        e(monobit),
-        e(block_frequency),
-        e(runs),
-        e(longest_runs),
-        e(matrix_rank),
-        e(spectral),
-        e(otm),
-        e(universal),
-        e(complexity),
-        e(serial),
-        e(apen),
-        e(cumsum),
-        e(excursions),
-        e(excursions_variant),
+        monobit,
+        block_frequency,
+        runs,
+        block_runs,
+        matrix,
+        spectral,
+        otm,
+        universal,
+        complexity,
+        apen,
+        cumsum,
     ]
 )
 def test_randtests_pass_random_bits(randtest, kwargs):
@@ -44,10 +31,13 @@ def test_randtests_pass_random_bits(randtest, kwargs):
 @mark.parametrize(
     "randtest, kwargs",
     [
-        e(notm),
+        notm,
+        serial,
+        excursions,
+        excursions_variant,
     ]
 )
-def test_multi_randtests_all_pass_random_bits(randtest, kwargs):
+def test_mapped_randtests_pass_random_bits(randtest, kwargs):
     result = randtest(a, **kwargs)
     for p in result.pvalues:
         assert p > 0.01
