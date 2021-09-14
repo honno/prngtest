@@ -435,7 +435,7 @@ def serial(bits, blocksize) -> Tuple[Result, Result]:
             sum_squares = sum(count ** 2 for count in counts.values())
             norm_sums[tempsize] = (2 ** tempsize / n) * sum_squares - n
         else:
-            norm_sums[tempsize]
+            norm_sums[tempsize] = 0
 
     norm_sum_delta1 = norm_sums[blocksize] - norm_sums[blocksize - 1]
     p1 = gammaincc(2 ** (blocksize - 2), norm_sum_delta1 / 2)

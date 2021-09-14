@@ -382,7 +382,7 @@ def test_examples(randtest, bits, kwargs, statistic, p):
         ),
     ],
 )
-def test_multi_examples(randtest, bits, kwargs, statistics, pvalues):
+def test_mapped_examples(randtest, bits, kwargs, statistics, pvalues):
     result = randtest(bits, **kwargs)
     for statistic, statistic_expect in zip(result.statistics, statistics):
         assert statistic_isclose(statistic, statistic_expect)
