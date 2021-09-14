@@ -189,7 +189,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             randtest=otm,
             bits=constants.e,
             tempsize=9,
-            blocksize=1033,  # nblocks=968
+            blocksize=1032,  # nblocks=968
             statistic=8.965859,
             p=0.110434,
         ),
