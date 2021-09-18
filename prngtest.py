@@ -10,7 +10,7 @@ from bitarray import bitarray, frozenbitarray
 from bitarray.util import ba2int, int2ba, zeros
 from scipy.fft import fft
 from scipy.special import gammaincc
-from scipy.stats import chisquare, norm
+from scipy.stats import chisquare
 
 __all__ = [
     "monobit",
@@ -36,9 +36,15 @@ class Result(NamedTuple):
     p: float
 
 
+def _check_bits_size(n, min_n):
+    if n < min_n:
+        raise ValueError(f"{n} bits below required minimum of {min_n} bits")
+
+
 def monobit(bits) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
 
     ones = a.count(1)
     zeros = n - ones
@@ -57,6 +63,7 @@ def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
 def block_frequency(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 8)
     nblocks = n // blocksize
 
     deviations = []
@@ -88,6 +95,7 @@ def _asruns(a: bitarray) -> Iterator[Tuple[Literal[0, 1], int]]:
 def runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
 
     ones = a.count(1)
     prop_ones = ones / n
@@ -116,18 +124,14 @@ def _binkey(okeys: Tuple[Real], key: Real) -> Real:
 def block_runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 128)
     defaults = {
         # n: (blocksize, nblocks, intervals)
         128: (8, 16, (1, 2, 3, 4)),
         6272: (128, 49, (4, 5, 6, 7, 8, 9)),
         750000: (10 ** 4, 75, (10, 11, 12, 13, 14, 15, 16)),
     }
-    try:
-        key = max(k for k in defaults.keys() if k <= n)
-    except ValueError as e:
-        raise NotImplementedError(
-            "Test implementation cannot handle sequences below length 128"
-        ) from e
+    key = max(k for k in defaults.keys() if k <= n)
     blocksize, nblocks, intervals = defaults[key]
 
     max_len_bins = {k: 0 for k in intervals}
@@ -172,6 +176,7 @@ def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
 def matrix(bits, matrix_dimen: Tuple[int, int]) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 4)
     nrows, ncols = matrix_dimen
     blocksize = nrows * ncols
     nblocks = n // blocksize
@@ -208,6 +213,7 @@ def _oscillate(a: bitarray) -> np.ndarray:
 def spectral(bits) -> Result:
     a = bitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
     if n % 2 != 0:
         a.pop()
     threshold = sqrt(log(1 / 0.05) * n)
@@ -251,6 +257,8 @@ def _product(length: int) -> Iterator[frozenbitarray]:
 def notm(bits, tempsize: int, blocksize: int) -> Dict[bitarray, Result]:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
+
     nblocks = n // blocksize
 
     block_counts = defaultdict(lambda: defaultdict(int))
@@ -278,6 +286,7 @@ def notm(bits, tempsize: int, blocksize: int) -> Dict[bitarray, Result]:
 def otm(bits, tempsize: int, blocksize: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
     nblocks = n // blocksize
     a = a[: nblocks * blocksize]
     temp = ~zeros(tempsize)
@@ -301,6 +310,7 @@ def otm(bits, tempsize: int, blocksize: int) -> Result:
 def universal(bits, blocksize: int, init_nblocks: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 4)
     # defaults = {
     #     # n: (blocksize, init_nblocks)
     #     387840: (6, 640),
@@ -388,6 +398,7 @@ def _berlekamp_massey(a: bitarray) -> int:
 def complexity(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
     nblocks = n // blocksize
     a = a[: nblocks * blocksize]
     mean_expect = (
@@ -424,6 +435,7 @@ class ResultsTuple(tuple):
 def serial(bits, blocksize) -> Tuple[Result, Result]:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
 
     norm_sums = {}
     for tempsize in [blocksize, blocksize - 1, blocksize - 2]:
@@ -450,6 +462,7 @@ def serial(bits, blocksize) -> Tuple[Result, Result]:
 def apen(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
 
     phis = []
     for tempsize in [blocksize, blocksize + 1]:
@@ -471,6 +484,7 @@ def apen(bits, blocksize: int) -> Result:
 def cumsum(bits, reverse: bool = False) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
+    _check_bits_size(n, 2)
 
     o = _oscillate(a)
     if reverse:
@@ -508,6 +522,8 @@ def _ascycles(x: np.ndarray) -> Iterator[np.ndarray]:
 
 def excursions(bits) -> Dict[int, Result]:
     a = frozenbitarray(bits)
+    n = len(a)
+    _check_bits_size(n, 2)
 
     o = _oscillate(a)
     sums = np.cumsum(o)
@@ -546,6 +562,8 @@ def excursions(bits) -> Dict[int, Result]:
 
 def excursions_variant(bits) -> Dict[int, Result]:
     a = frozenbitarray(bits)
+    n = len(a)
+    _check_bits_size(n, 2)
 
     o = _oscillate(a)
     sums = np.cumsum(o)

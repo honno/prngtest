@@ -1,5 +1,4 @@
-from bitarray.util import urandom
-from pytest import mark
+from pytest import mark, raises
 
 from prngtest import (
     apen,
@@ -19,9 +18,6 @@ from prngtest import (
     universal,
 )
 
-# TODO make this reproducible
-a = urandom(1_000_000)
-
 
 @mark.parametrize(
     "randtest",
@@ -37,15 +33,12 @@ a = urandom(1_000_000)
         complexity,
         apen,
         cumsum,
+        notm,
+        serial,
+        excursions,
+        excursions_variant,
     ],
 )
-def test_randtests_pass_random_bits(randtest):
-    result = randtest(a)
-    assert result.p > 0.01
-
-
-@mark.parametrize("randtest", [notm, serial, excursions, excursions_variant])
-def test_mapped_randtests_pass_random_bits(randtest):
-    results = randtest(a)
-    for p in results.pvalues:
-        assert p > 0.01
+def test_error_on_single_bit(randtest):
+    with raises(ValueError):
+        randtest("0")
