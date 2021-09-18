@@ -1,7 +1,7 @@
 from bisect import bisect_left
 from collections import defaultdict
 from functools import lru_cache
-from math import erfc, floor, log, sqrt
+from math import erfc, floor, isclose, log, sqrt
 from numbers import Real
 from typing import Dict, Iterable, Iterator, List, Literal, NamedTuple, Tuple, Union
 
@@ -14,9 +14,9 @@ from scipy.stats import chisquare
 
 __all__ = [
     "monobit",
-    "block_frequency",
+    "blockfreq",
     "runs",
-    "block_runs",
+    "blockruns",
     "matrix",
     "spectral",
     "notm",
@@ -38,13 +38,24 @@ class Result(NamedTuple):
 
 def _check_bits_size(n, min_n):
     if n < min_n:
-        raise ValueError(f"{n} bits below required minimum of {min_n} bits")
+        raise ValueError(f"{n=} bits below required minimum of {min_n} bits")
+
+
+from warnings import warn
+
+
+def _check_recommendations(*args: Tuple[bool, str, str]):
+    fails = [(f_vars, rec) for pass_, f_vars, rec in args if not pass_]
+    if len(fails) > 0:
+        lines = [f"{f_vars}, but NIST recommends {rec}" for f_vars, rec in fails]
+        warn("\n".join(lines))
 
 
 def monobit(bits) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations((n >= 100, f"{n=}", f"n ≥ 100"))
 
     ones = a.count(1)
     zeros = n - ones
@@ -60,11 +71,17 @@ def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
         yield a[i : i + blocksize]
 
 
-def block_frequency(bits, blocksize: int) -> Result:
+def blockfreq(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 8)
     nblocks = n // blocksize
+    _check_recommendations(
+        (n >= 100, f"{n=}", "n ≥ 100"),
+        (blocksize >= 20, f"{blocksize=}", "blocksize ≥ 20"),
+        (blocksize > 0.01 * n, f"{blocksize=}", "blocksize > 0.01 * n"),
+        (nblocks < 100, f"{nblocks=}", "nblocks < 100"),
+    )
 
     deviations = []
     for chunk in _chunked(a, nblocks, blocksize):
@@ -96,6 +113,7 @@ def runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations((n >= 100, f"{n=}", f"n ≥ 100"))
 
     ones = a.count(1)
     prop_ones = ones / n
@@ -121,18 +139,19 @@ def _binkey(okeys: Tuple[Real], key: Real) -> Real:
         return right
 
 
-def block_runs(bits):
+def blockruns(bits):
     a = frozenbitarray(bits)
     n = len(a)
+    # TODO: expose blocksize and intervals args
     _check_bits_size(n, 128)
     defaults = {
         # n: (blocksize, nblocks, intervals)
-        128: (8, 16, (1, 2, 3, 4)),
-        6272: (128, 49, (4, 5, 6, 7, 8, 9)),
-        750000: (10 ** 4, 75, (10, 11, 12, 13, 14, 15, 16)),
+        128: (16, 8, (1, 2, 3, 4)),
+        6272: (49, 128, (4, 5, 6, 7, 8, 9)),
+        750000: (75, 10 ** 4, (10, 11, 12, 13, 14, 15, 16)),
     }
     key = max(k for k in defaults.keys() if k <= n)
-    blocksize, nblocks, intervals = defaults[key]
+    nblocks, blocksize, intervals = defaults[key]
 
     max_len_bins = {k: 0 for k in intervals}
     for chunk in _chunked(a[: nblocks * blocksize], nblocks, blocksize):
@@ -173,13 +192,17 @@ def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
     return rank
 
 
-def matrix(bits, matrix_dimen: Tuple[int, int]) -> Result:
+def matrix(bits, dims: Tuple[int, int]) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 4)
-    nrows, ncols = matrix_dimen
+    nrows, ncols = dims
     blocksize = nrows * ncols
     nblocks = n // blocksize
+    _check_recommendations(
+        (n >= 128, f"{n=}", "n ≥ 128"),
+        (blocksize >= 20, f"dims=({ncols=}, {nrows=})", "nrows * ncols ≥ 20"),
+    )
 
     ranks = []
     for chunk in _chunked(a, nblocks, blocksize):
@@ -216,6 +239,8 @@ def spectral(bits) -> Result:
     _check_bits_size(n, 2)
     if n % 2 != 0:
         a.pop()
+        n -= 1
+    _check_recommendations((n >= 1000, f"{n=}", "n ≥ 1000"))
     threshold = sqrt(log(1 / 0.05) * n)
 
     o = _oscillate(a)
@@ -258,8 +283,12 @@ def notm(bits, tempsize: int, blocksize: int) -> Dict[bitarray, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
-
     nblocks = n // blocksize
+    _check_recommendations(
+        (n >= 100, f"{n=}", "n ≥ 100"),
+        (tempsize in (9, 10), f"{tempsize=}", "tempsize == 9 or 10"),
+        (blocksize > 0.01 * n, "{n=} and {blocksize=}", "blocksize > 0.01 * n"),
+    )
 
     block_counts = defaultdict(lambda: defaultdict(int))
     for i, chunk in enumerate(_chunked(a, nblocks, blocksize)):
@@ -288,6 +317,14 @@ def otm(bits, tempsize: int, blocksize: int) -> Result:
     n = len(a)
     _check_bits_size(n, 2)
     nblocks = n // blocksize
+    _check_recommendations(
+        (n >= 288, f"{n=}", "n ≥ 288"),
+        (
+            isclose(tempsize, log(nblocks, 2)),
+            "{tempsize=} and {nblocks=}",
+            "tempsize ≈ log2(nblocks)",
+        ),
+    )
     a = a[: nblocks * blocksize]
     temp = ~zeros(tempsize)
 
@@ -307,24 +344,27 @@ def otm(bits, tempsize: int, blocksize: int) -> Result:
     return Result(chi2, p)
 
 
-def universal(bits, blocksize: int, init_nblocks: int) -> Result:
+def universal(bits) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
-    _check_bits_size(n, 4)
-    # defaults = {
-    #     # n: (blocksize, init_nblocks)
-    #     387840: (6, 640),
-    #     904960: (7, 1280),
-    #     2068480: (8, 2560),
-    #     4654080: (9, 5120),
-    #     10342400: (10, 10240),
-    #     22753280: (11, 20480),
-    #     49643520: (12, 40960),
-    #     107560960: (13, 81920),
-    #     231669760: (14, 163840),
-    #     496435200: (15, 327680),
-    #     1059061760: (16, 655360),
-    # }
+    # TODO: expose blocksize and init_nblocks args
+    _check_bits_size(n, 387_840)
+    defaults = {
+        # n: (blocksize, init_nblocks)
+        387_840: (6, 640),
+        904_960: (7, 1280),
+        2_068_480: (8, 2560),
+        4_654080: (9, 5120),
+        10_342_400: (10, 10240),
+        22_753_280: (11, 20480),
+        49_643_520: (12, 40960),
+        107_560_960: (13, 81920),
+        231_669_760: (14, 163840),
+        496_435_200: (15, 327680),
+        105_9061_760: (16, 655360),
+    }
+    key = max(k for k in defaults.keys() if k <= n)
+    blocksize, init_nblocks = defaults[key]
     nblocks = n // blocksize
     test_nblocks = nblocks - init_nblocks
     a = a[: nblocks * blocksize]
@@ -400,6 +440,11 @@ def complexity(bits, blocksize: int) -> Result:
     n = len(a)
     _check_bits_size(n, 2)
     nblocks = n // blocksize
+    _check_recommendations(
+        (n >= 1_000_000, f"{n=}", "n ≥ 1mil"),
+        (500 <= blocksize <= 5000, f"{blocksize=}", "500 ≤ blocksize ≤ 5000"),
+        (nblocks >= 200, f"{nblocks=}", "nblocks ≥ 200"),
+    )
     a = a[: nblocks * blocksize]
     mean_expect = (
         blocksize / 2
@@ -436,6 +481,13 @@ def serial(bits, blocksize) -> Tuple[Result, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations(
+        (
+            blocksize < floor(log(n, 2)) - 2,
+            f"{n=} and {blocksize=}",
+            "blocksize < ⌊log2(n) - 2⌋",
+        )
+    )
 
     norm_sums = {}
     for tempsize in [blocksize, blocksize - 1, blocksize - 2]:
@@ -463,6 +515,13 @@ def apen(bits, blocksize: int) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations(
+        (
+            blocksize < floor(log(n, 2)) - 5,
+            f"{n=} and {blocksize=}",
+            "blocksize < ⌊log2(n)⌋ - 5",
+        )
+    )
 
     phis = []
     for tempsize in [blocksize, blocksize + 1]:
@@ -485,6 +544,7 @@ def cumsum(bits, reverse: bool = False) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations((n >= 100, f"{n=}", f"n ≥ 100"))
 
     o = _oscillate(a)
     if reverse:
@@ -524,6 +584,7 @@ def excursions(bits) -> Dict[int, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations((n >= 1_000_000, f"{n=}", f"n ≥ 1mil"))
 
     o = _oscillate(a)
     sums = np.cumsum(o)
@@ -564,11 +625,12 @@ def excursions_variant(bits) -> Dict[int, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations((n >= 1_000_000, f"{n=}", f"n ≥ 1mil"))
 
     o = _oscillate(a)
     sums = np.cumsum(o)
     state_counts = defaultdict(int, dict(zip(*np.unique(sums, return_counts=True))))
-    ncycles = state_counts[0] + 1
+    ncycles = state_counts[0]
 
     results = ResultsMap()
     for state in (-9, -8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9):

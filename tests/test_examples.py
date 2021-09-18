@@ -5,8 +5,8 @@ from pytest import mark, param
 
 from prngtest import (
     apen,
-    block_frequency,
-    block_runs,
+    blockfreq,
+    blockruns,
     complexity,
     cumsum,
     excursions,
@@ -78,7 +78,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.109599,
         ),
         e(
-            randtest=block_frequency,
+            randtest=blockfreq,
             bits=(
                 "1100100100"
                 "0011111101"
@@ -102,7 +102,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             p=0.147232,
         ),
         e(
-            randtest=block_runs,
+            randtest=blockruns,
             bits=(
                 "11001100"
                 "00010101"

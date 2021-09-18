@@ -3,8 +3,8 @@ from pytest import mark
 
 from prngtest import (
     apen,
-    block_frequency,
-    block_runs,
+    blockfreq,
+    blockruns,
     complexity,
     cumsum,
     excursions,
@@ -27,9 +27,9 @@ a = urandom(1_000_000)
     "randtest",
     [
         monobit,
-        block_frequency,
+        blockfreq,
         runs,
-        block_runs,
+        blockruns,
         matrix,
         spectral,
         otm,
