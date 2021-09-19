@@ -187,7 +187,6 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             statistic=1.1949875,
             p=0.767189,
         ),
-        # TODO G-SHA-1 example
         e(
             randtest=complexity,
             bits=constants.e,
