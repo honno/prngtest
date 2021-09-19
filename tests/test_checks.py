@@ -22,7 +22,7 @@ from . import constants
         apen,
         cumsum,
         excursions,
-        excursions_variant,
+        vexcursions,
     ],
 )
 def test_error_on_single_bit(randtest):
@@ -33,7 +33,7 @@ def test_error_on_single_bit(randtest):
 @mark.parametrize(
     "randtest, n",
     [
-        (monobit, constants.e[:99]),
+        (monobit, 99),
         (blockfreq, 99),
         (runs, 99),
         (matrix, 127),
@@ -45,7 +45,7 @@ def test_error_on_single_bit(randtest):
         (apen, 10),
         (cumsum, 99),
         (excursions, 10),
-        (excursions_variant, 10),
+        (vexcursions, 10),
     ],
 )
 def test_warn_on_disapproved_input(randtest, n):

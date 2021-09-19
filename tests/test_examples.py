@@ -111,14 +111,16 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
         e(
             randtest=matrix,
             bits=("01011001" "00101010" "1101"),
-            matrix_dimen=(3, 3),
+            nrows=3,
+            ncols=3,
             statistic=0.596953,
             p=0.741948,
         ),
         e(
             randtest=matrix,
             bits=constants.e[:100_000],
-            matrix_dimen=(32, 32),
+            nrows=32,
+            ncols=32,
             statistic=1.2619656,
             p=0.532069,
         ),
@@ -185,6 +187,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             statistic=1.1949875,
             p=0.767189,
         ),
+        # TODO G-SHA-1 example
         e(
             randtest=complexity,
             bits=constants.e,
@@ -321,7 +324,7 @@ def test_examples(randtest, bits, kwargs, statistic, p):
             xfail=True,
         ),
         e(
-            randtest=excursions_variant,
+            randtest=vexcursions,
             bits=constants.e,
             statistic=[
                 1450,
@@ -388,8 +391,8 @@ def test_excursions_sub_example():
     assert p_isclose(result.p, 0.502529)
 
 
-def test_excursions_variant_sub_example():
-    results = excursions_variant("0110110101")
+def test_vexcursions_sub_example():
+    results = vexcursions("0110110101")
     result = results[1]
     assert statistic_isclose(result.statistic, 4)
     assert p_isclose(result.p, 0.683091)

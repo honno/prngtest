@@ -1,9 +1,20 @@
 from bisect import bisect_left
 from collections import defaultdict
 from functools import lru_cache
-from math import erfc, floor, isclose, log, sqrt
+from math import ceil, erfc, floor, log, sqrt
 from numbers import Real
-from typing import Dict, Iterable, Iterator, List, Literal, NamedTuple, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 from warnings import warn
 
 import numpy as np
@@ -28,7 +39,7 @@ __all__ = [
     "apen",
     "cumsum",
     "excursions",
-    "excursions_variant",
+    "vexcursions",
 ]
 
 
@@ -69,10 +80,12 @@ def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
         yield a[i : i + blocksize]
 
 
-def blockfreq(bits, blocksize: int) -> Result:
+def blockfreq(bits, blocksize: Optional[int] = None) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 8)
+    if blocksize is None:
+        blocksize = max(ceil(0.01 * n), 4)
     nblocks = n // blocksize
     _check_recommendations(
         (n >= 100, f"{n=}", "n ≥ 100"),
@@ -140,7 +153,7 @@ def _binkey(okeys: Tuple[Real], key: Real) -> Real:
 def blockruns(bits):
     a = frozenbitarray(bits)
     n = len(a)
-    # TODO: expose blocksize and intervals args
+    # TODO: expose args
     _check_bits_size(n, 128)
     defaults = {
         # n: (blocksize, nblocks, intervals)
@@ -190,16 +203,31 @@ def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
     return rank
 
 
-def matrix(bits, dims: Tuple[int, int]) -> Result:
+def _check_mutual_kwargs(
+    arg1: Optional[Any], name1: str, arg2: Optional[Any], name2: str
+):
+    if (arg1 is None) ^ (arg2 is None):
+        passed = name1 if arg2 is None else name2
+        raise NotImplementedError(
+            f"{name1}={arg1} and {name2}={arg2}, "
+            f"but passing only {passed} is not supported"
+        )
+
+
+def matrix(bits, nrows: Optional[int] = None, ncols: Optional[int] = None) -> Result:
+    _check_mutual_kwargs(nrows, "nrows", ncols, "ncols")
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 4)
-    nrows, ncols = dims
+    if nrows is None and ncols is None:
+        blocksize = max(min(n // 38, 1024), 4)
+        nrows = floor(sqrt(blocksize))
+        ncols = blocksize // nrows
     blocksize = nrows * ncols
     nblocks = n // blocksize
     _check_recommendations(
         (n >= 128, f"{n=}", "n ≥ 128"),
-        (blocksize >= 20, f"dims=({ncols=}, {nrows=})", "nrows * ncols ≥ 20"),
+        (blocksize >= 20, f"{ncols=} and {nrows=}", "nrows * ncols ≥ 20"),
     )
 
     ranks = []
@@ -235,10 +263,10 @@ def spectral(bits) -> Result:
     a = bitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    _check_recommendations((n >= 1000, f"{n=}", "n ≥ 1000"))
     if n % 2 != 0:
         a.pop()
         n -= 1
-    _check_recommendations((n >= 1000, f"{n=}", "n ≥ 1000"))
     threshold = sqrt(log(1 / 0.05) * n)
 
     o = _oscillate(a)
@@ -277,10 +305,16 @@ def _product(length: int) -> Iterator[frozenbitarray]:
         yield frozenbitarray(int2ba(n, length=length))
 
 
-def notm(bits, tempsize: int, blocksize: int) -> Dict[bitarray, Result]:
+def notm(
+    bits, tempsize: Optional[int] = None, blocksize: Optional[int] = None
+) -> Dict[bitarray, Result]:
+    _check_mutual_kwargs(tempsize, "tempsize", blocksize, "blocksize")
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    if tempsize is None and blocksize is None:
+        blocksize = max(ceil(0.01 * n), 1)
+        tempsize = min(max(blocksize // 3, 1), 10)
     nblocks = n // blocksize
     _check_recommendations(
         (n >= 100, f"{n=}", "n ≥ 100"),
@@ -310,15 +344,21 @@ def notm(bits, tempsize: int, blocksize: int) -> Dict[bitarray, Result]:
     return results
 
 
-def otm(bits, tempsize: int, blocksize: int) -> Result:
+def otm(
+    bits, tempsize: Optional[int] = None, blocksize: Optional[int] = None
+) -> Result:
+    _check_mutual_kwargs(tempsize, "tempsize", blocksize, "blocksize")
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    if tempsize is None and blocksize is None:
+        blocksize = max(floor(sqrt(n)), 1)
+        tempsize = min(max(floor(sqrt(blocksize)), 1), 12)
     nblocks = n // blocksize
     _check_recommendations(
         (n >= 288, f"{n=}", "n ≥ 288"),
         (
-            isclose(tempsize, log(nblocks, 2)),
+            tempsize - log(nblocks, 2) < log(n),
             "{tempsize=} and {nblocks=}",
             "tempsize ≈ log2(nblocks)",
         ),
@@ -342,29 +382,47 @@ def otm(bits, tempsize: int, blocksize: int) -> Result:
     return Result(chi2, p)
 
 
-def universal(bits) -> Result:
+def universal(
+    bits, blocksize: Optional[int] = None, init_nblocks: Optional[int] = None
+) -> Result:
+    _check_mutual_kwargs(blocksize, "blocksize", init_nblocks, "init_nblocks")
     a = frozenbitarray(bits)
     n = len(a)
-    # TODO: expose blocksize and init_nblocks args
-    _check_bits_size(n, 387_840)
-    defaults = {
-        # n: (blocksize, init_nblocks)
-        387_840: (6, 640),
-        904_960: (7, 1280),
-        2_068_480: (8, 2560),
-        4_654080: (9, 5120),
-        10_342_400: (10, 10240),
-        22_753_280: (11, 20480),
-        49_643_520: (12, 40960),
-        107_560_960: (13, 81920),
-        231_669_760: (14, 163840),
-        496_435_200: (15, 327680),
-        105_9061_760: (16, 655360),
-    }
-    key = max(k for k in defaults.keys() if k <= n)
-    blocksize, init_nblocks = defaults[key]
+    _check_bits_size(n, 4)
+    if blocksize is None and init_nblocks is None:
+        # TODO: remove magic numbers (values from SP800-22, section 2.9.7, p. 45)
+        defaults = {
+            # n: (blocksize, init_nblocks)
+            387_840: (6, 640),
+            904_960: (7, 1280),
+            2_068_480: (8, 2560),
+            4_654080: (9, 5120),
+            10_342_400: (10, 10240),
+            22_753_280: (11, 20480),
+            49_643_520: (12, 40960),
+            107_560_960: (13, 81920),
+            231_669_760: (14, 163840),
+            496_435_200: (15, 327680),
+            105_9061_760: (16, 655360),
+        }
+        try:
+            key = max(k for k in defaults.keys() if k <= n)
+            blocksize, init_nblocks = defaults[key]
+        except ValueError:
+            blocksize = min(max(ceil(log(n)), 2), 16)
+            nblocks = n // blocksize
+            init_nblocks = max(nblocks // 100, 1)
     nblocks = n // blocksize
     test_nblocks = nblocks - init_nblocks
+    _check_recommendations(
+        (n >= 387_840, f"{n=}", "n ≥ 387840"),
+        (6 <= blocksize <= 16, f"{blocksize=}", "6 ≤ blocksize ≤ 16"),
+        (
+            init_nblocks - 10 * 2 ** test_nblocks < log(n),
+            "{init_nblocks=} and {test_nblocks=}",
+            "init_nblocks ≈ 10 * 2 ** test_nblocks",
+        ),
+    )
     a = a[: nblocks * blocksize]
     bnd = init_nblocks * blocksize
     init, test = a[:bnd], a[bnd:]
@@ -433,10 +491,12 @@ def _berlekamp_massey(a: bitarray) -> int:
     return min_size
 
 
-def complexity(bits, blocksize: int) -> Result:
+def complexity(bits, blocksize: Optional[int] = None) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
-    _check_bits_size(n, 2)
+    _check_bits_size(n, 4)
+    if blocksize is None:
+        blocksize = max(floor(sqrt(n)), 2)
     nblocks = n // blocksize
     _check_recommendations(
         (n >= 1_000_000, f"{n=}", "n ≥ 1mil"),
@@ -475,10 +535,12 @@ class ResultsTuple(tuple):
         return [result.p for result in self]
 
 
-def serial(bits, blocksize) -> Tuple[Result, Result]:
+def serial(bits, blocksize: Optional[int] = None) -> Tuple[Result, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    if blocksize is None:
+        blocksize = max(floor(log(n, 2)) - 3, 2)
     _check_recommendations(
         (
             blocksize < floor(log(n, 2)) - 2,
@@ -509,10 +571,12 @@ def serial(bits, blocksize) -> Tuple[Result, Result]:
     return ResultsTuple((Result(norm_sum_delta1, p1), Result(normsum_delta2, p2)))
 
 
-def apen(bits, blocksize: int) -> Result:
+def apen(bits, blocksize: Optional[int] = None) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
+    if blocksize is None:
+        blocksize = max(floor(log(n, 2)) - 6, 2)
     _check_recommendations(
         (
             blocksize < floor(log(n, 2)) - 5,
@@ -619,7 +683,7 @@ def excursions(bits) -> Dict[int, Result]:
     return results
 
 
-def excursions_variant(bits) -> Dict[int, Result]:
+def vexcursions(bits) -> Dict[int, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
