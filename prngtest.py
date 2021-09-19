@@ -4,13 +4,14 @@ from functools import lru_cache
 from math import erfc, floor, isclose, log, sqrt
 from numbers import Real
 from typing import Dict, Iterable, Iterator, List, Literal, NamedTuple, Tuple, Union
+from warnings import warn
 
 import numpy as np
 from bitarray import bitarray, frozenbitarray
 from bitarray.util import ba2int, int2ba, zeros
 from scipy.fft import fft
 from scipy.special import gammaincc
-from scipy.stats import chisquare
+from scipy.stats import chisquare, norm
 
 __all__ = [
     "monobit",
@@ -41,9 +42,6 @@ def _check_bits_size(n, min_n):
         raise ValueError(f"{n=} bits below required minimum of {min_n} bits")
 
 
-from warnings import warn
-
-
 def _check_recommendations(*args: Tuple[bool, str, str]):
     fails = [(f_vars, rec) for pass_, f_vars, rec in args if not pass_]
     if len(fails) > 0:
@@ -55,7 +53,7 @@ def monobit(bits) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
-    _check_recommendations((n >= 100, f"{n=}", f"n ≥ 100"))
+    _check_recommendations((n >= 100, f"{n=}", "n ≥ 100"))
 
     ones = a.count(1)
     zeros = n - ones
@@ -113,7 +111,7 @@ def runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
-    _check_recommendations((n >= 100, f"{n=}", f"n ≥ 100"))
+    _check_recommendations((n >= 100, f"{n=}", "n ≥ 100"))
 
     ones = a.count(1)
     prop_ones = ones / n
@@ -544,7 +542,7 @@ def cumsum(bits, reverse: bool = False) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
-    _check_recommendations((n >= 100, f"{n=}", f"n ≥ 100"))
+    _check_recommendations((n >= 100, f"{n=}", "n ≥ 100"))
 
     o = _oscillate(a)
     if reverse:
@@ -584,7 +582,7 @@ def excursions(bits) -> Dict[int, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
-    _check_recommendations((n >= 1_000_000, f"{n=}", f"n ≥ 1mil"))
+    _check_recommendations((n >= 1_000_000, f"{n=}", "n ≥ 1mil"))
 
     o = _oscillate(a)
     sums = np.cumsum(o)
@@ -625,7 +623,7 @@ def excursions_variant(bits) -> Dict[int, Result]:
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
-    _check_recommendations((n >= 1_000_000, f"{n=}", f"n ≥ 1mil"))
+    _check_recommendations((n >= 1_000_000, f"{n=}", "n ≥ 1mil"))
 
     o = _oscillate(a)
     sums = np.cumsum(o)

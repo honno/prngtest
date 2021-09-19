@@ -1,23 +1,7 @@
 from bitarray.util import urandom
 from pytest import mark
 
-from prngtest import (
-    apen,
-    blockfreq,
-    blockruns,
-    complexity,
-    cumsum,
-    excursions,
-    excursions_variant,
-    matrix,
-    monobit,
-    notm,
-    otm,
-    runs,
-    serial,
-    spectral,
-    universal,
-)
+from prngtest import *
 
 # TODO make this reproducible
 a = urandom(1_000_000)

@@ -3,23 +3,7 @@ from math import isclose
 from bitarray import frozenbitarray
 from pytest import mark, param
 
-from prngtest import (
-    apen,
-    blockfreq,
-    blockruns,
-    complexity,
-    cumsum,
-    excursions,
-    excursions_variant,
-    matrix,
-    monobit,
-    notm,
-    otm,
-    runs,
-    serial,
-    spectral,
-    universal,
-)
+from prngtest import *
 
 from . import constants
 
