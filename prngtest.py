@@ -692,7 +692,7 @@ def vexcursions(bits) -> Dict[int, Result]:
     o = _oscillate(a)
     sums = np.cumsum(o)
     state_counts = defaultdict(int, dict(zip(*np.unique(sums, return_counts=True))))
-    ncycles = state_counts[0]
+    ncycles = state_counts[0] + 1
 
     results = ResultsMap()
     for state in (-9, -8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9):
