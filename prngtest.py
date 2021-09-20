@@ -129,6 +129,8 @@ def runs(bits):
     ones = a.count(1)
     prop_ones = ones / n
     prop_zeros = 1 - prop_ones
+    if prop_zeros == 0 or prop_ones == 0:
+        raise NotImplementedError("bits must contain both zeros and ones")
 
     nruns = sum(1 for _ in _asruns(a))
     p = erfc(

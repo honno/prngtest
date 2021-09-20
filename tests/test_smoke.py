@@ -5,6 +5,7 @@ from prngtest import *
 
 # TODO use SHA-1 data
 a = urandom(1_000_000)
+a[1] = 1 - a[0]  # ensures mixed bits when slicing
 
 
 @mark.filterwarnings("ignore::UserWarning")
