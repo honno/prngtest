@@ -43,9 +43,33 @@ __all__ = [
 ]
 
 
+# ------------------------------------------------------------------------------
+# Helpers
+
+
 class Result(NamedTuple):
     statistic: Union[int, float]
     p: float
+
+
+class ResultsTuple(tuple):
+    @property
+    def statistics(self) -> List[float]:
+        return [result.statistic for result in self]
+
+    @property
+    def pvalues(self) -> List[float]:
+        return [result.p for result in self]
+
+
+class ResultsMap(dict):
+    @property
+    def statistics(self) -> List[float]:
+        return [result.statistic for result in self.values()]
+
+    @property
+    def pvalues(self) -> List[float]:
+        return [result.p for result in self.values()]
 
 
 def _check_bits_size(n, min_n):
@@ -58,6 +82,114 @@ def _check_recommendations(*args: Tuple[bool, str, str]):
     if len(fails) > 0:
         lines = [f"{f_vars}, but NIST recommends {rec}" for f_vars, rec in fails]
         warn("\n".join(lines))
+
+
+def _check_mutual_kwargs(
+    arg1: Optional[Any], name1: str, arg2: Optional[Any], name2: str
+):
+    if (arg1 is None) ^ (arg2 is None):
+        passed = name1 if arg2 is None else name2
+        raise NotImplementedError(
+            f"{name1}={arg1} and {name2}={arg2}, "
+            f"but passing only {passed} is not supported"
+        )
+
+
+def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
+    for i in range(0, nblocks * blocksize, blocksize):
+        yield a[i : i + blocksize]
+
+
+def _windowed(a: bitarray, blocksize: int) -> Iterator[bitarray]:
+    n = len(a)
+    for i in range(0, n - blocksize + 1):
+        yield a[i : i + blocksize]
+
+
+def _asruns(a: bitarray) -> Iterator[Tuple[Literal[0, 1], int]]:
+    run_val = a[0]
+    run_len = 1
+    for value in a[1:]:
+        if value == run_val:
+            run_len += 1
+        else:
+            yield run_val, run_len
+            run_val = value
+            run_len = 1
+    yield run_val, run_len
+
+
+def _ascycles(x: np.ndarray) -> Iterator[np.ndarray]:
+    split_at = np.arange(x.size)[x == 0]
+    yield from np.split(x, split_at)
+
+
+def _product(length: int) -> Iterator[frozenbitarray]:
+    for n in range(2 ** length):
+        yield frozenbitarray(int2ba(n, length=length))
+
+
+@lru_cache
+def _binkey(okeys: Tuple[Real], key: Real) -> Real:
+    i = min(bisect_left(okeys, key), len(okeys) - 1)
+    left = okeys[i - 1]
+    right = okeys[i]
+    if abs(left - key) < abs(right - key):
+        return left
+    else:
+        return right
+
+
+def _oscillate(a: bitarray) -> np.ndarray:
+    x = np.frombuffer(a.unpack(), dtype=np.bool_)
+    o = x.astype(np.int8)
+    np.putmask(o, ~x, np.int8(-1))
+    return o
+
+
+def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
+    nums = [ba2int(a) for a in matrix]
+    rank = 0
+    while len(nums) > 0:
+        pivot = nums.pop()
+        if pivot:
+            rank += 1
+            lsb = pivot & -pivot
+            for i, num in enumerate(nums):
+                if lsb & num:
+                    nums[i] = num ^ pivot
+    return rank
+
+
+def _berlekamp_massey(a: bitarray) -> int:
+    n = len(a)
+    errloc = zeros(n)
+    errloc[0] = 1
+    min_size = 0
+    nloops = -1
+    errlock_prev = errloc.copy()
+
+    for i, bit in enumerate(a):
+        discrepancy = bit
+        for bit1, bit2 in zip(a[i - min_size : i][::-1], errloc[1 : min_size + 1]):
+            product = bit1 & bit2
+            discrepancy = discrepancy ^ product
+        if discrepancy:
+            errloc_temp = errloc.copy()
+            recalc = bitarray(
+                bit1 ^ bit2 for bit1, bit2 in zip(errloc[i - nloops : n], errlock_prev)
+            )
+            errloc[i - nloops : n] = recalc
+            if min_size <= i / 2:
+                min_size = i + 1 - min_size
+                nloops = i
+                errlock_prev = errloc_temp
+
+    return min_size
+
+
+# ------------------------------------------------------------------------------
+# Randomness tests
 
 
 def monobit(bits) -> Result:
@@ -73,11 +205,6 @@ def monobit(bits) -> Result:
     p = erfc(normdiff / sqrt(2))
 
     return Result(normdiff, p)
-
-
-def _chunked(a: bitarray, nblocks: int, blocksize: int) -> Iterator[bitarray]:
-    for i in range(0, nblocks * blocksize, blocksize):
-        yield a[i : i + blocksize]
 
 
 def blockfreq(bits, blocksize: Optional[int] = None) -> Result:
@@ -107,19 +234,6 @@ def blockfreq(bits, blocksize: Optional[int] = None) -> Result:
     return Result(chi2, p)
 
 
-def _asruns(a: bitarray) -> Iterator[Tuple[Literal[0, 1], int]]:
-    run_val = a[0]
-    run_len = 1
-    for value in a[1:]:
-        if value == run_val:
-            run_len += 1
-        else:
-            yield run_val, run_len
-            run_val = value
-            run_len = 1
-    yield run_val, run_len
-
-
 def runs(bits):
     a = frozenbitarray(bits)
     n = len(a)
@@ -139,17 +253,6 @@ def runs(bits):
     )
 
     return Result(nruns, p)
-
-
-@lru_cache
-def _binkey(okeys: Tuple[Real], key: Real) -> Real:
-    i = min(bisect_left(okeys, key), len(okeys) - 1)
-    left = okeys[i - 1]
-    right = okeys[i]
-    if abs(left - key) < abs(right - key):
-        return left
-    else:
-        return right
 
 
 def blockruns(bits):
@@ -191,31 +294,6 @@ def blockruns(bits):
     return Result(chi2, p)
 
 
-def _gf2_matrix_rank(matrix: Iterable[bitarray]) -> int:
-    nums = [ba2int(a) for a in matrix]
-    rank = 0
-    while len(nums) > 0:
-        pivot = nums.pop()
-        if pivot:
-            rank += 1
-            lsb = pivot & -pivot
-            for i, num in enumerate(nums):
-                if lsb & num:
-                    nums[i] = num ^ pivot
-    return rank
-
-
-def _check_mutual_kwargs(
-    arg1: Optional[Any], name1: str, arg2: Optional[Any], name2: str
-):
-    if (arg1 is None) ^ (arg2 is None):
-        passed = name1 if arg2 is None else name2
-        raise NotImplementedError(
-            f"{name1}={arg1} and {name2}={arg2}, "
-            f"but passing only {passed} is not supported"
-        )
-
-
 def matrix(bits, nrows: Optional[int] = None, ncols: Optional[int] = None) -> Result:
     _check_mutual_kwargs(nrows, "nrows", ncols, "ncols")
     a = frozenbitarray(bits)
@@ -254,13 +332,6 @@ def matrix(bits, nrows: Optional[int] = None, ncols: Optional[int] = None) -> Re
     return Result(chi2, p)
 
 
-def _oscillate(a: bitarray) -> np.ndarray:
-    x = np.frombuffer(a.unpack(), dtype=np.bool_)
-    o = x.astype(np.int8)
-    np.putmask(o, ~x, np.int8(-1))
-    return o
-
-
 def spectral(bits) -> Result:
     a = bitarray(bits)
     n = len(a)
@@ -284,27 +355,6 @@ def spectral(bits) -> Result:
     p = erfc(abs(normdiff) / sqrt(2))
 
     return Result(normdiff, p)
-
-
-class ResultsMap(dict):
-    @property
-    def statistics(self) -> List[float]:
-        return [result.statistic for result in self.values()]
-
-    @property
-    def pvalues(self) -> List[float]:
-        return [result.p for result in self.values()]
-
-
-def _windowed(a: bitarray, blocksize: int) -> Iterator[bitarray]:
-    n = len(a)
-    for i in range(0, n - blocksize + 1):
-        yield a[i : i + blocksize]
-
-
-def _product(length: int) -> Iterator[frozenbitarray]:
-    for n in range(2 ** length):
-        yield frozenbitarray(int2ba(n, length=length))
 
 
 def notm(
@@ -468,33 +518,6 @@ def universal(
     return Result(norm_gaps, p)
 
 
-def _berlekamp_massey(a: bitarray) -> int:
-    n = len(a)
-    errloc = zeros(n)
-    errloc[0] = 1
-    min_size = 0
-    nloops = -1
-    errlock_prev = errloc.copy()
-
-    for i, bit in enumerate(a):
-        discrepancy = bit
-        for bit1, bit2 in zip(a[i - min_size : i][::-1], errloc[1 : min_size + 1]):
-            product = bit1 & bit2
-            discrepancy = discrepancy ^ product
-        if discrepancy:
-            errloc_temp = errloc.copy()
-            recalc = bitarray(
-                bit1 ^ bit2 for bit1, bit2 in zip(errloc[i - nloops : n], errlock_prev)
-            )
-            errloc[i - nloops : n] = recalc
-            if min_size <= i / 2:
-                min_size = i + 1 - min_size
-                nloops = i
-                errlock_prev = errloc_temp
-
-    return min_size
-
-
 def complexity(bits, blocksize: Optional[int] = None) -> Result:
     a = frozenbitarray(bits)
     n = len(a)
@@ -527,16 +550,6 @@ def complexity(bits, blocksize: Optional[int] = None) -> Result:
     chi2, p = chisquare(list(variance_bins.values()), expected_bin_counts)
 
     return Result(chi2, p)
-
-
-class ResultsTuple(tuple):
-    @property
-    def statistics(self) -> List[float]:
-        return [result.statistic for result in self]
-
-    @property
-    def pvalues(self) -> List[float]:
-        return [result.p for result in self]
 
 
 def serial(bits, blocksize: Optional[int] = None) -> Tuple[Result, Result]:
@@ -639,11 +652,6 @@ def cumsum(bits, reverse: bool = False) -> Result:
     )
 
     return Result(max_sum, p)
-
-
-def _ascycles(x: np.ndarray) -> Iterator[np.ndarray]:
-    split_at = np.arange(x.size)[x == 0]
-    yield from np.split(x, split_at)
 
 
 def excursions(bits) -> Dict[int, Result]:
