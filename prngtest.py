@@ -85,7 +85,7 @@ def blockfreq(bits, blocksize: Optional[int] = None) -> Result:
     n = len(a)
     _check_bits_size(n, 8)
     if blocksize is None:
-        blocksize = max(ceil(0.01 * n), 4)
+        blocksize = max(ceil(0.0125 * n), 4)
     nblocks = n // blocksize
     _check_recommendations(
         (n >= 100, f"{n=}", "n ≥ 100"),
@@ -315,13 +315,15 @@ def notm(
     n = len(a)
     _check_bits_size(n, 2)
     if tempsize is None and blocksize is None:
-        blocksize = max(ceil(0.01 * n), 1)
+        blocksize = max(ceil(0.0125 * n), 1)
+        print(f"{blocksize=}")
         tempsize = min(max(blocksize // 3, 1), 10)
+        print(f"{tempsize=}")
     nblocks = n // blocksize
     _check_recommendations(
         (n >= 100, f"{n=}", "n ≥ 100"),
         (tempsize in (9, 10), f"{tempsize=}", "tempsize == 9 or 10"),
-        (blocksize > 0.01 * n, "{n=} and {blocksize=}", "blocksize > 0.01 * n"),
+        (blocksize > 0.01 * n, f"{n=} and {blocksize=}", "blocksize > 0.01 * n"),
     )
 
     block_counts = defaultdict(lambda: defaultdict(int))
@@ -421,7 +423,7 @@ def universal(
         (6 <= blocksize <= 16, f"{blocksize=}", "6 ≤ blocksize ≤ 16"),
         (
             init_nblocks - 10 * 2 ** test_nblocks < log(n),
-            "{init_nblocks=} and {test_nblocks=}",
+            f"{init_nblocks=} and {test_nblocks=}",
             "init_nblocks ≈ 10 * 2 ** test_nblocks",
         ),
     )
