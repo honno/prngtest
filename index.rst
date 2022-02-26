@@ -1,0 +1,5 @@
+prngtest
+========
+
+.. automodule:: prngtest
+   :members:

@@ -72,7 +72,7 @@ class ResultsMap(dict):
         return [result.p for result in self.values()]
 
 
-def _check_bits_size(n, min_n):
+def _check_bits_size(n: int, min_n: int):
     if n < min_n:
         raise ValueError(f"{n=} bits below required minimum of {min_n} bits")
 
@@ -192,7 +192,23 @@ def _berlekamp_massey(a: bitarray) -> int:
 # Randomness tests
 
 
-def monobit(bits) -> Result:
+Bits = Union[str, Iterable[int], bitarray]
+
+
+def monobit(bits: Bits) -> Result:
+    """Proportion of zeros and ones is compared to expected 1:1 ratio
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
@@ -207,7 +223,23 @@ def monobit(bits) -> Result:
     return Result(normdiff, p)
 
 
-def blockfreq(bits, blocksize: Optional[int] = None) -> Result:
+def blockfreq(bits: Bits, blocksize: Optional[int] = None) -> Result:
+    """Proportion of values per block is compared to expected 1:1 ratio
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    blocksize : ``Optional[int]``
+        Size of the blocks that partition the given sequence. If ``None``, a
+        suitable default will be found.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 8)
@@ -234,7 +266,20 @@ def blockfreq(bits, blocksize: Optional[int] = None) -> Result:
     return Result(chi2, p)
 
 
-def runs(bits):
+def runs(bits: Bits):
+    """Number of runs is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
@@ -255,7 +300,20 @@ def runs(bits):
     return Result(nruns, p)
 
 
-def blockruns(bits):
+def blockruns(bits: Bits):
+    """Longest runs per block is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     # TODO: expose args
@@ -294,7 +352,28 @@ def blockruns(bits):
     return Result(chi2, p)
 
 
-def matrix(bits, nrows: Optional[int] = None, ncols: Optional[int] = None) -> Result:
+def matrix(
+    bits: Bits, nrows: Optional[int] = None, ncols: Optional[int] = None
+) -> Result:
+    """Independence of neighbouring subsequences is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    nrows : ``Optional[int]``
+        Number of rows in each matrix. If ``None``, a suitable default will be
+        found.
+    ncols : ``Optional[int]``
+        Number of columns in each matrix. If ``None``, a suitable default will
+        be found.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     _check_mutual_kwargs(nrows, "nrows", ncols, "ncols")
     a = frozenbitarray(bits)
     n = len(a)
@@ -332,7 +411,20 @@ def matrix(bits, nrows: Optional[int] = None, ncols: Optional[int] = None) -> Re
     return Result(chi2, p)
 
 
-def spectral(bits) -> Result:
+def spectral(bits: Bits) -> Result:
+    """Potency of periodic features in sequence is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = bitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
@@ -360,6 +452,24 @@ def spectral(bits) -> Result:
 def notm(
     bits, tempsize: Optional[int] = None, blocksize: Optional[int] = None
 ) -> Dict[bitarray, Result]:
+    """Matches to template per block is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    tempsize : ``Optional[int]``
+        Size of template. If ``None``, a suitable default will be found.
+    blocksize : ``Optional[int]``
+        Size of the blocks that partition the given sequence. If ``None``, a
+        suitable default will be found.
+
+    Returns
+    -------
+    ``dict[Any, tuple[int | float, float]]``
+        The test's statistic and p-value mapped to each template.
+    """
     _check_mutual_kwargs(tempsize, "tempsize", blocksize, "blocksize")
     a = frozenbitarray(bits)
     n = len(a)
@@ -401,6 +511,24 @@ def notm(
 def otm(
     bits, tempsize: Optional[int] = None, blocksize: Optional[int] = None
 ) -> Result:
+    """Overlapping matches to template per block is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    tempsize : ``Optional[int]``
+        Size of template. If ``None``, a suitable default will be found.
+    blocksize : ``Optional[int]``
+        Size of the blocks that partition the given sequence. If ``None``, a
+        suitable default will be found.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     _check_mutual_kwargs(tempsize, "tempsize", blocksize, "blocksize")
     a = frozenbitarray(bits)
     n = len(a)
@@ -439,6 +567,25 @@ def otm(
 def universal(
     bits, blocksize: Optional[int] = None, init_nblocks: Optional[int] = None
 ) -> Result:
+    """Distance between patterns is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    blocksize : ``Optional[int]``
+        Size of the blocks that partition the given sequence. If ``None``, a
+        suitable default will be found.
+    init_nblocks : ``Optional[int]``
+        Number of blocks to be used in identifying patterns, beginning at the
+        start of the sequence. If ``None``, a suitable default will be found.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     _check_mutual_kwargs(blocksize, "blocksize", init_nblocks, "init_nblocks")
     a = frozenbitarray(bits)
     n = len(a)
@@ -518,7 +665,23 @@ def universal(
     return Result(norm_gaps, p)
 
 
-def complexity(bits, blocksize: Optional[int] = None) -> Result:
+def complexity(bits: Bits, blocksize: Optional[int] = None) -> Result:
+    """LSFRs of blocks is compared to expected length
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    blocksize : ``Optional[int]``
+        Size of the blocks that partition the given sequence. If ``None``, a
+        suitable default will be found.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 4)
@@ -552,7 +715,23 @@ def complexity(bits, blocksize: Optional[int] = None) -> Result:
     return Result(chi2, p)
 
 
-def serial(bits, blocksize: Optional[int] = None) -> Tuple[Result, Result]:
+def serial(bits: Bits, blocksize: Optional[int] = None) -> Tuple[Result, Result]:
+    """Proportion of all overlapping patterns is compared to expected uniformity
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    blocksize : ``Optional[int]``
+        Size of the blocks that partition the given sequence. If ``None``, a
+        suitable default will be found.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
@@ -588,7 +767,23 @@ def serial(bits, blocksize: Optional[int] = None) -> Tuple[Result, Result]:
     return ResultsTuple((Result(norm_sum_delta1, p1), Result(normsum_delta2, p2)))
 
 
-def apen(bits, blocksize: Optional[int] = None) -> Result:
+def apen(bits: Bits, blocksize: Optional[int] = None) -> Result:
+    """Approximate entropy of sequence is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    blocksize : ``Optional[int]``
+        Size of the blocks that partition the given sequence. If ``None``, a
+        suitable default will be found.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
@@ -619,7 +814,22 @@ def apen(bits, blocksize: Optional[int] = None) -> Result:
     return Result(chi2, p)
 
 
-def cumsum(bits, reverse: bool = False) -> Result:
+def cumsum(bits: Bits, reverse: bool = False) -> Result:
+    """Furthest detour in a randomn walk is compared to expected result
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+    reverse : ``bool``
+        If ``True``, cumulate from the end of the sequence first.
+
+    Returns
+    -------
+    ``tuple[int | float, float]``
+        The test's statistic and p-value.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
@@ -654,7 +864,21 @@ def cumsum(bits, reverse: bool = False) -> Result:
     return Result(max_sum, p)
 
 
-def excursions(bits) -> Dict[int, Result]:
+def excursions(bits: Bits) -> Dict[int, Result]:
+    """Frequency of states per cycle in a random walk is compared to expected
+    results
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+
+    Returns
+    -------
+    ``dict[Any, tuple[int | float, float]]``
+        The test's statistic and p-value mapped to each w/e.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
@@ -695,7 +919,20 @@ def excursions(bits) -> Dict[int, Result]:
     return results
 
 
-def vexcursions(bits) -> Dict[int, Result]:
+def vexcursions(bits: Bits) -> Dict[int, Result]:
+    """Proportion of states in a random walk is compared to expected results
+
+    Parameters
+    ----------
+    bits : ``str | Iterable[int] | bitarray``
+        Input sequence. If a ``str``, must contain only ``"0"`` or ``"1"``. If
+        an iterable of integers, must contain only ``0`` or ``1``.
+
+    Returns
+    -------
+    ``dict[Any, tuple[int | float, float]]``
+        The test's statistic and p-value mapped to each w/e.
+    """
     a = frozenbitarray(bits)
     n = len(a)
     _check_bits_size(n, 2)
