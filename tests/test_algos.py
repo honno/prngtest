@@ -1,10 +1,10 @@
+import pytest
 from bitarray import bitarray
-from pytest import mark
 
 from prngtest import _berlekamp_massey
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "a, min_size",
     [
         (bitarray("1101011110001"), 4),

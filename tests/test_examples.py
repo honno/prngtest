@@ -1,7 +1,7 @@
 from math import isclose
 
+import pytest
 from bitarray import frozenbitarray
-from pytest import mark, param
 
 from prngtest import *
 
@@ -19,20 +19,23 @@ def p_isclose(p, p_expect):
     return isclose(p, p_expect, abs_tol=0.005)
 
 
-def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
+def e(randtest, bits, statistic, p, *, xfail=False, slow=False, **kwargs):
     if len(kwargs) == 0:
         name = f"{randtest.__name__}(<{len(bits)} bits>)"
     else:
         f_kwargs = ", ".join(f"{k}={repr(v)}" for k, v in kwargs.items())
         name = f"{randtest.__name__}(<{len(bits)} bits>, {f_kwargs})"
 
+    marks = []
     if xfail:
-        return param(randtest, bits, kwargs, statistic, p, id=name, marks=mark.xfail)
-    else:
-        return param(randtest, bits, kwargs, statistic, p, id=name)
+        marks.append(pytest.mark.xfail)
+    if slow:
+        marks.append(pytest.mark.slow)
+
+    return pytest.param(randtest, bits, kwargs, statistic, p, id=name, marks=marks)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "randtest, bits, kwargs, statistic, p",
     [
         e(
@@ -193,6 +196,7 @@ def e(randtest, bits, statistic, p, *, xfail=False, **kwargs):
             blocksize=1000,
             statistic=2.700348,
             p=0.845406,
+            slow=True,
         ),
         e(
             randtest=apen,
@@ -277,7 +281,7 @@ def test_examples(randtest, bits, kwargs, statistic, p):
     assert p_isclose(result.p, p)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "randtest, bits, kwargs, statistics, pvalues",
     [
         e(

@@ -1,11 +1,11 @@
-from pytest import mark, raises, warns
+import pytest
 
 from prngtest import *
 
 from . import constants
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "randtest",
     [
         monobit,
@@ -26,11 +26,11 @@ from . import constants
     ],
 )
 def test_error_on_single_bit(randtest):
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         randtest("0")
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "randtest, n",
     [
         (monobit, 99),
@@ -49,5 +49,5 @@ def test_error_on_single_bit(randtest):
     ],
 )
 def test_warn_on_disapproved_input(randtest, n):
-    with warns(UserWarning):
+    with pytest.warns(UserWarning):
         randtest(constants.e[:n])

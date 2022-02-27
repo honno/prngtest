@@ -1,5 +1,5 @@
+import pytest
 from bitarray.util import urandom
-from pytest import mark
 
 from prngtest import *
 
@@ -8,8 +8,8 @@ a = urandom(1_000_000)
 a[1] = 1 - a[0]  # ensures mixed bits when slicing
 
 
-@mark.filterwarnings("ignore::UserWarning")
-@mark.parametrize(
+@pytest.mark.filterwarnings("ignore::UserWarning")
+@pytest.mark.parametrize(
     "randtest, min_n",
     [
         (monobit, 2),
@@ -33,7 +33,7 @@ def test_randtests_can_default_kwargs(randtest, min_n):
     randtest(a[:min_n])
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "randtest",
     [
         monobit,
@@ -44,7 +44,7 @@ def test_randtests_can_default_kwargs(randtest, min_n):
         spectral,
         otm,
         universal,
-        complexity,
+        pytest.param(complexity, marks=pytest.mark.slow),
         apen,
         cumsum,
     ],
@@ -54,7 +54,7 @@ def test_randtests_pass_random_bits(randtest):
     assert result.p > 0.01
 
 
-@mark.parametrize("randtest", [notm, serial, excursions, vexcursions])
+@pytest.mark.parametrize("randtest", [notm, serial, excursions, vexcursions])
 def test_mapped_randtests_pass_random_bits(randtest):
     results = randtest(a)
     for p in results.pvalues:
