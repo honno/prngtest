@@ -7,6 +7,8 @@ from prngtest import *
 
 from . import constants
 
+pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
+
 
 def statistic_isclose(statistic, statistic_expect):
     if isinstance(statistic, int):
