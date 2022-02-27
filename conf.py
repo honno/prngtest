@@ -17,3 +17,5 @@ collapse_navigation = True
 
 autodoc_member_order = "bysource"
 autodoc_typehints = "none"
+
+napoleon_use_rtype = False

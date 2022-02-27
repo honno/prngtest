@@ -206,8 +206,10 @@ def monobit(bits: Bits) -> Result:
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -237,8 +239,10 @@ def blockfreq(bits: Bits, blocksize: Optional[int] = None) -> Result:
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -277,8 +281,10 @@ def runs(bits: Bits):
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``int``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -311,8 +317,10 @@ def blockruns(bits: Bits):
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -371,8 +379,10 @@ def matrix(
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     _check_mutual_kwargs(nrows, "nrows", ncols, "ncols")
     a = frozenbitarray(bits)
@@ -422,8 +432,10 @@ def spectral(bits: Bits) -> Result:
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = bitarray(bits)
     n = len(a)
@@ -467,8 +479,9 @@ def notm(
 
     Returns
     -------
-    ``dict[Any, tuple[int | float, float]]``
-        The test's statistic and p-value mapped to each template.
+    results_map : ``dict[frozenbitarray, tuple[float, float]]``
+        Mapping of each template to a tuple containing its respective test
+        statistic and p-value.
     """
     _check_mutual_kwargs(tempsize, "tempsize", blocksize, "blocksize")
     a = frozenbitarray(bits)
@@ -526,8 +539,10 @@ def otm(
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     _check_mutual_kwargs(tempsize, "tempsize", blocksize, "blocksize")
     a = frozenbitarray(bits)
@@ -583,8 +598,10 @@ def universal(
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     _check_mutual_kwargs(blocksize, "blocksize", init_nblocks, "init_nblocks")
     a = frozenbitarray(bits)
@@ -679,8 +696,10 @@ def complexity(bits: Bits, blocksize: Optional[int] = None) -> Result:
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -729,8 +748,10 @@ def serial(bits: Bits, blocksize: Optional[int] = None) -> Tuple[Result, Result]
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    first_result : ``tuple[float, float]``
+        The first test's statistic and p-value.
+    second_result : ``tuple[float, float]``
+        The second test's statistic and p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -781,8 +802,10 @@ def apen(bits: Bits, blocksize: Optional[int] = None) -> Result:
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``float``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -827,8 +850,10 @@ def cumsum(bits: Bits, reverse: bool = False) -> Result:
 
     Returns
     -------
-    ``tuple[int | float, float]``
-        The test's statistic and p-value.
+    statistic : ``int``
+        The test's statistic.
+    p : ``float``
+        The test's p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -876,8 +901,9 @@ def excursions(bits: Bits) -> Dict[int, Result]:
 
     Returns
     -------
-    ``dict[Any, tuple[int | float, float]]``
-        The test's statistic and p-value mapped to each w/e.
+    results_map : ``dict[int, tuple[float, float]]``
+        Mapping of each state to a tuple containing its respective test
+        statistic and p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
@@ -930,8 +956,9 @@ def vexcursions(bits: Bits) -> Dict[int, Result]:
 
     Returns
     -------
-    ``dict[Any, tuple[int | float, float]]``
-        The test's statistic and p-value mapped to each w/e.
+    results_map : ``dict[int, tuple[float, float]]``
+        Mapping of each state to a tuple containing its respective test
+        statistic and p-value.
     """
     a = frozenbitarray(bits)
     n = len(a)
