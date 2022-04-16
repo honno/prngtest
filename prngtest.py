@@ -127,7 +127,7 @@ def _ascycles(x: np.ndarray) -> Iterator[np.ndarray]:
 
 
 def _product(length: int) -> Iterator[frozenbitarray]:
-    for n in range(2 ** length):
+    for n in range(2**length):
         yield frozenbitarray(int2ba(n, length=length))
 
 
@@ -266,7 +266,7 @@ def blockfreq(bits: Bits, blocksize: Optional[int] = None) -> Result:
         dev = prop - 1 / 2
         deviations.append(dev)
 
-    chi2 = 4 * blocksize * sum(x ** 2 for x in deviations)
+    chi2 = 4 * blocksize * sum(x**2 for x in deviations)
     p = gammaincc(nblocks / 2, chi2 / 2)
 
     return Result(chi2, p)
@@ -332,7 +332,7 @@ def blockruns(bits: Bits):
         # n: (blocksize, nblocks, intervals)
         128: (16, 8, (1, 2, 3, 4)),
         6272: (49, 128, (4, 5, 6, 7, 8, 9)),
-        750000: (75, 10 ** 4, (10, 11, 12, 13, 14, 15, 16)),
+        750000: (75, 10**4, (10, 11, 12, 13, 14, 15, 16)),
     }
     key = max(k for k in defaults.keys() if k <= n)
     nblocks, blocksize, intervals = defaults[key]
@@ -509,14 +509,14 @@ def notm(
         for temp, count in matches.items():
             block_counts[temp][i] = count
 
-    count_expect = (blocksize - tempsize + 1) / 2 ** tempsize
+    count_expect = (blocksize - tempsize + 1) / 2**tempsize
     variance = blocksize * (
-        (1 / 2 ** tempsize) - ((2 * tempsize - 1) / 2 ** (2 * tempsize))
+        (1 / 2**tempsize) - ((2 * tempsize - 1) / 2 ** (2 * tempsize))
     )
     results = ResultsMap()
     for temp in _product(tempsize):
         count_diffs = [block_counts[temp][b] - count_expect for b in range(nblocks)]
-        chi2 = sum(diff ** 2 / variance for diff in count_diffs)
+        chi2 = sum(diff**2 / variance for diff in count_diffs)
         p = gammaincc(nblocks / 2, chi2 / 2)
         results[temp] = Result(chi2, p)
 
@@ -638,7 +638,7 @@ def universal(
         (n >= 387_840, f"{n=}", "n ≥ 387840"),
         (6 <= blocksize <= 16, f"{blocksize=}", "6 ≤ blocksize ≤ 16"),
         (
-            init_nblocks - 10 * 2 ** test_nblocks < log(n),
+            init_nblocks - 10 * 2**test_nblocks < log(n),
             f"{init_nblocks=} and {test_nblocks=}",
             "init_nblocks ≈ 10 * 2 ** test_nblocks",
         ),
@@ -718,7 +718,7 @@ def complexity(bits: Bits, blocksize: Optional[int] = None) -> Result:
     mean_expect = (
         blocksize / 2
         + (9 + (-(1 ** (blocksize + 1)))) / 36
-        - (blocksize / 3 + 2 / 9) / 2 ** blocksize
+        - (blocksize / 3 + 2 / 9) / 2**blocksize
     )
 
     intervals = (-3, -2, -1, 0, 1, 2, 3)
@@ -775,8 +775,8 @@ def serial(bits: Bits, blocksize: Optional[int] = None) -> Tuple[Result, Result]
             counts = defaultdict(int)
             for window in _windowed(ouroboros, tempsize):
                 counts[window] += 1
-            sum_squares = sum(count ** 2 for count in counts.values())
-            norm_sums[tempsize] = (2 ** tempsize / n) * sum_squares - n
+            sum_squares = sum(count**2 for count in counts.values())
+            norm_sums[tempsize] = (2**tempsize / n) * sum_squares - n
         else:
             norm_sums[tempsize] = 0
 
