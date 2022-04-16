@@ -10,7 +10,7 @@ data_path = Path(__file__).parent / "data"
 e = bitarray()
 with open(data_path / "e.bin", "rb") as f:
     e.fromfile(f)
-e = e[:1_000_000]  # convenience as only first million bits is used in examples
+e = e[:1_000_000]  # only first million bits is used in SP800-22 examples
 
 sha1 = bitarray()
 with open(data_path / "sha1.bin", "rb") as f:

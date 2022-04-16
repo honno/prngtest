@@ -1,8 +1,10 @@
+from argparse import ArgumentParser, FileType
 from bisect import bisect_left
 from collections import defaultdict
 from functools import lru_cache
 from math import ceil, erfc, floor, log, sqrt
 from numbers import Real
+from sys import argv
 from typing import (
     Any,
     Dict,
@@ -977,3 +979,27 @@ def vexcursions(bits: Bits) -> Dict[int, Result]:
         results[state] = Result(count, p)
 
     return results
+
+
+# ------------------------------------------------------------------------------
+# CLI
+
+
+def _cli(*strargs: str):
+    parser = ArgumentParser()
+    parser.add_argument("data", type=FileType("rb"))
+    parser.add_argument("-a", "--all", action="store_true")
+    args = parser.parse_args(strargs)
+    bits = bitarray()
+    bits.frombytes(args.data.read())
+    test_names = __all__[:]
+    if not args.all:
+        test_names.remove("complexity")
+    for test_name in test_names:
+        func = globals()[test_name]
+        result = func(bits)
+        print(f"{test_name}: {result}")
+
+
+if __name__ == "__main__":
+    _cli(*argv[1:])
